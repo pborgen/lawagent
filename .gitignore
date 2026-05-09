@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.python-version
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Project data — never commit raw documents, embeddings, or case files
+data/raw/**
+data/vectorstore/**
+data/case/**
+!data/raw/.gitkeep
+!data/vectorstore/.gitkeep
+!data/case/.gitkeep

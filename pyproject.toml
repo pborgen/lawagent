@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lawagent-monorepo"
+version = "0.1.0"
+description = "Trial-prep assistant for a pro se litigant in a Connecticut divorce. Initial focus: alimony (CGS 46b-82, 46b-83)."
+requires-python = ">=3.11"
+dependencies = [
+    "langchain>=0.3",
+    "langchain-anthropic>=0.3",
+    "langchain-chroma>=0.1.4",
+    "langchain-voyageai>=0.1.4",
+    "langchain-openai>=0.2",
+    "langchain-text-splitters>=0.3",
+    "langgraph>=0.2",
+    "chromadb>=0.5",
+    "pydantic>=2",
+    "typer>=0.12",
+    "python-dotenv>=1",
+    "rich>=13",
+    "playwright>=1.47",
+    "beautifulsoup4>=4.12",
+]
+
+# Discover every top-level package under apps/ and packages/. With this
+# in place, `pip install -e .` (or `uv sync`) makes `agent`, `cli`,
+# `ingest`, `corpus`, `ingestion`, and `llm` all importable.
+[tool.setuptools.packages.find]
+where = ["apps", "packages"]
+
+[tool.pytest.ini_options]
+pythonpath = ["apps", "packages"]
+
+[project.scripts]
+lawagent = "cli.main:app"
