@@ -39,9 +39,12 @@ from pathlib import Path
 from typing import Optional
 
 from playwright.sync_api import BrowserContext
+from rich.console import Console
 
 from efile.src.case import CaseDetail, DocumentLink
 from efile.src.throttle import download_delay, polite_wait, with_retry
+
+console = Console()
 
 
 def case_dir(crn: str) -> Path:
@@ -170,22 +173,33 @@ def _download_one(
     docs_dir: Path,
     base_dir: Path,
 ) -> str:
-    """Open the document URL and save it. Return the path relative to `base_dir`."""
-    page = context.new_page()
-    try:
-        # Most CT docs serve as a direct PDF response; Playwright surfaces
-        # that as a download event we can intercept. If the link instead
-        # opens a viewer page, the user can extend this to grab the iframe
-        # PDF URL — that's a TODO for whichever doc format the site uses.
-        with page.expect_download() as dl_info:
-            page.goto(doc.href, wait_until="domcontentloaded")
-        download = dl_info.value
+    """Fetch the document via the context's API request (shares session cookies)
+    and save it. Return the path relative to `base_dir`.
 
-        suggested = download.suggested_filename or f"{doc.label}.pdf"
-        prefix = f"{entry.entry_id}__" if entry.entry_id else ""
-        filename = f"{prefix}{_safe_filename(suggested)}"
-        target = docs_dir / filename
-        download.save_as(str(target))
-        return str(target.relative_to(base_dir))
+    We use context.request rather than driving a browser page because CT serves
+    docs as direct attachment responses. expect_download() on a new page is
+    flaky for that flow (the download event sometimes never fires); a plain
+    HTTP GET with the same cookies is deterministic.
+    """
+    console.print(f"Downloading [bold]{doc.label}[/bold] (entry {entry.entry_id}) from {doc.href}")
+    response = context.request.get(doc.href)
+    try:
+        if not response.ok:
+            raise RuntimeError(
+                f"HTTP {response.status} {response.status_text} fetching {doc.href}"
+            )
+        body = response.body()
     finally:
-        page.close()
+        response.dispose()
+
+    # Borrow extension from server's filename hint when present.
+    cd = response.headers.get("content-disposition", "") or ""
+    m = re.search(r'filename\*?=(?:UTF-8\'\'|")?([^";]+)', cd)
+    suggested = (m.group(1).strip('"') if m else "")
+    ext = Path(suggested).suffix or ".pdf"
+
+    prefix = f"{entry.entry_id}__" if entry.entry_id else ""
+    filename = f"{prefix}{_safe_filename(doc.label)}{ext}"
+    target = docs_dir / filename
+    target.write_bytes(body)
+    return str(target.relative_to(base_dir))

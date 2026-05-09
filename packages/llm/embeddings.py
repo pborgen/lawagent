@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from langchain_core.embeddings import Embeddings
+from langchain_core.embeddings import Embeddings  # pyright: ignore[reportMissingImports]
 
 
 PROVIDERS = ("voyage", "openai")

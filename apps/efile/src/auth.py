@@ -26,12 +26,12 @@ from efile.src.throttle import polite_wait
 # Open https://efile.eservices.jud.ct.gov in dev-tools and copy the
 # real selectors. ASP.NET often uses names like "ctl00$..." which need
 # to be quoted exactly.
-LOGIN_URL = "https://efile.eservices.jud.ct.gov/Login.aspx"  # TODO confirm
-USERNAME_SELECTOR = "input[name='UserName']"                 # TODO confirm
-PASSWORD_SELECTOR = "input[name='Password']"                 # TODO confirm
-SUBMIT_SELECTOR = "input[type='submit']"                    # TODO confirm
+LOGIN_URL = "https://eservices.jud.ct.gov/Login.aspx"  # TODO confirm
+USERNAME_SELECTOR = "#ctl00_cphBody_txtUserID"
+PASSWORD_SELECTOR = "#ctl00_cphBody_txtPassword"
+SUBMIT_SELECTOR = "#ctl00_cphBody_btnLogin"
 # A selector that only exists when logged in — used to verify success.
-LOGGED_IN_MARKER = "a[href*='Logout']"                       # TODO confirm
+LOGGED_IN_MARKER = "#ctl00_hlnkLogOut"
 # ─────────────────────────────────────────────────────────────────────
 
 
