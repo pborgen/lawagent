@@ -24,10 +24,9 @@ htmlcov/
 *.swp
 .DS_Store
 
-# Project data — never commit raw documents, embeddings, or case files
+# Project data — never commit raw documents or case files. Embeddings
+# now live in Postgres (see docker-compose.yml), not on disk.
 data/raw/**
-data/vectorstore/**
 data/case/**
 !data/raw/.gitkeep
-!data/vectorstore/.gitkeep
 !data/case/.gitkeep

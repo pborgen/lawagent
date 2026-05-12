@@ -45,6 +45,7 @@ class DocumentLink:
 
 @dataclass
 class DocketEntry:
+    order: int                    # 1-indexed position in the docket as the court displays it
     entry_id: str                 # CT eServices "Entry No" — often blank; we fall back to the DocumentNo from the link
     date: Optional[str] = None    # File Date, e.g. "06/25/2025"
     filed_by: Optional[str] = None   # P / D / Court / etc.
@@ -172,6 +173,7 @@ def parse_case_detail(crn: str, html: str, *, base_url: str) -> CaseDetail:
             entry_id = _clean(_text(tds[0])) or _doc_no_from_href(abs_href) or ""
 
             entry = DocketEntry(
+                order=len(detail.docket_entries) + 1,
                 entry_id=entry_id,
                 date=_clean(_text(tds[1])),
                 filed_by=_clean(_text(tds[2])),

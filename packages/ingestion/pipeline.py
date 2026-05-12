@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Iterable, Optional
 
-from langchain_chroma import Chroma
+from langchain_postgres import PGVector
 
 from corpus import Chunk
 from ingestion.chunking import chunk_file
@@ -33,29 +33,44 @@ def chunk_files(files: Iterable[Path]) -> list[Chunk]:
     return chunks
 
 
-def _resolve_persist_dir(persist_dir: Optional[Path]) -> Path:
-    return persist_dir or Path(
-        os.getenv("LAWAGENT_VECTORSTORE_DIR", "./data/vectorstore")
+def _resolve_connection(connection: Optional[str]) -> str:
+    url = connection or os.getenv("LAWAGENT_PG_URL")
+    if not url:
+        raise RuntimeError(
+            "LAWAGENT_PG_URL is not set. Example: "
+            "postgresql+psycopg://lawagent:lawagent@localhost:5432/lawagent"
+        )
+    return url
+
+
+def get_vectorstore(
+    *,
+    collection: str = DEFAULT_COLLECTION,
+    connection: Optional[str] = None,
+) -> PGVector:
+    """Return a PGVector handle for the given collection.
+
+    Assumes the `vector` extension is already enabled on the target database
+    (see docker-compose.yml for local dev).
+    """
+    return PGVector(
+        embeddings=get_embeddings(),
+        collection_name=collection,
+        connection=_resolve_connection(connection),
+        use_jsonb=True,
     )
 
 
-def write_to_chroma(
+def write_to_vectorstore(
     chunks: list[Chunk],
     *,
     collection: str = DEFAULT_COLLECTION,
-    persist_dir: Optional[Path] = None,
+    connection: Optional[str] = None,
 ) -> None:
-    persist = _resolve_persist_dir(persist_dir)
-    persist.mkdir(parents=True, exist_ok=True)
-
-    vectorstore = Chroma(
-        collection_name=collection,
-        embedding_function=get_embeddings(),
-        persist_directory=str(persist),
-    )
+    vectorstore = get_vectorstore(collection=collection, connection=connection)
     vectorstore.add_texts(
         texts=[c.text for c in chunks],
-        metadatas=[c.to_chroma_metadata() for c in chunks],
+        metadatas=[c.to_metadata_dict() for c in chunks],
         ids=[c.id for c in chunks],
     )
 
@@ -64,7 +79,7 @@ def ingest(
     source: Path,
     *,
     collection: str = DEFAULT_COLLECTION,
-    persist_dir: Optional[Path] = None,
+    connection: Optional[str] = None,
 ) -> tuple[list[Path], list[Chunk]]:
     """End-to-end: discover → chunk → embed → write.
 
@@ -74,5 +89,5 @@ def ingest(
     files = discover_files(source)
     chunks = chunk_files(files)
     if chunks:
-        write_to_chroma(chunks, collection=collection, persist_dir=persist_dir)
+        write_to_vectorstore(chunks, collection=collection, connection=connection)
     return files, chunks

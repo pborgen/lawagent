@@ -1,4 +1,5 @@
 from corpus.schema import (
+    AuthorityLevel,
     SourceType,
     DocumentMetadata,
     Chunk,
@@ -6,6 +7,7 @@ from corpus.schema import (
 )
 
 __all__ = [
+    "AuthorityLevel",
     "SourceType",
     "DocumentMetadata",
     "Chunk",

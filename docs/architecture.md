@@ -11,9 +11,10 @@ This is a sketch, not a commitment. The spike will pressure-test it.
   long context (good for legal docs) and citation-friendly outputs.
 - **Embeddings:** hosted — `voyage-3` (default) or OpenAI
   `text-embedding-3-small`. Both wired through `llm.get_embeddings()`.
-- **Vector DB:** **Chroma** — local, file-backed, idiomatic with
-  LangChain. Easiest path for a single-user spike; revisit (Qdrant,
-  pgvector) only if it limits us.
+- **Vector DB:** **pgvector** on Postgres — local Docker for dev,
+  Aurora PostgreSQL or RDS PostgreSQL on AWS. Same `langchain-postgres`
+  interface in both environments. Chosen for hybrid SQL+vector queries,
+  managed-backups story, and resume-legible AWS surface area.
 - **Repo:** Monorepo. Mirrors `socialmedia/`: root `pyproject.toml`,
   `apps/<name>/{main.py,src/}` per app, shared code in `packages/`.
 
@@ -35,15 +36,15 @@ lawagent/
 │   └── llm/                   # ⭐ chat model + embeddings — single source of truth
 ├── data/
 │   ├── raw/                   # source documents (gitignored)
-│   ├── vectorstore/           # local Chroma files (gitignored)
 │   └── case/                  # the author's private case docs (gitignored)
+├── docker-compose.yml         # local Postgres + pgvector for dev
 ```
 
 ### Why ingestion is its own package
 
 `packages/ingestion/` exists so the agent never imports anything from
-`apps/ingest/`. The agent reads from Chroma using
-`llm.get_embeddings()`; ingestion writes to Chroma using the same
+`apps/ingest/`. The agent reads from the pgvector store via
+`ingestion.get_vectorstore()`; ingestion writes through the same
 function. Everything else stays decoupled.
 
 ### Why `apps/efile/` is a separate process

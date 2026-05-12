@@ -1,8 +1,9 @@
 # Spike Plan
 
 A small, throwaway-tolerant prototype to validate the core loop:
-**curated CT alimony corpus → Chroma → LangGraph + Claude → grounded,
-cited answer about a real alimony question from the author's case.**
+**curated CT alimony corpus → pgvector (Postgres) → LangGraph + Claude
+→ grounded, cited answer about a real alimony question from the
+author's case.**
 
 **Time budget:** the author's trial is within 4 weeks of 2026-05-09.
 The spike must produce something the author can use to prep for that
@@ -50,7 +51,7 @@ inspection.
 ### Pipeline
 1. Drop raw documents into `data/raw/`.
 2. `apps/ingest`: parse, chunk with citation metadata, embed, write to
-   the vector store under `data/vectorstore/`.
+   the pgvector store on Postgres (local Docker or Aurora/RDS).
 3. `apps/agent`: a LangGraph agent with a `retrieve` tool over the
    vector store and an Anthropic Claude LLM.
 4. `apps/cli`: `lawagent ask "..."` and `lawagent memo "..."`.

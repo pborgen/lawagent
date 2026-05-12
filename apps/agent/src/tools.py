@@ -1,27 +1,20 @@
 from __future__ import annotations
 
-import os
-from pathlib import Path
 from typing import Optional
 
-from langchain_chroma import Chroma
 from langchain_core.tools import tool
+from langchain_postgres import PGVector
 
-from llm import get_embeddings
-
-
-_VECTORSTORE: Optional[Chroma] = None
+from ingestion import get_vectorstore
 
 
-def _get_vectorstore() -> Chroma:
+_VECTORSTORE: Optional[PGVector] = None
+
+
+def _vs() -> PGVector:
     global _VECTORSTORE
     if _VECTORSTORE is None:
-        persist = Path(os.getenv("LAWAGENT_VECTORSTORE_DIR", "./data/vectorstore"))
-        _VECTORSTORE = Chroma(
-            collection_name="ct-divorce",
-            embedding_function=get_embeddings(),
-            persist_directory=str(persist),
-        )
+        _VECTORSTORE = get_vectorstore()
     return _VECTORSTORE
 
 
@@ -32,16 +25,16 @@ def retrieve(query: str, k: int = 6, source_type: Optional[str] = None) -> str:
     Args:
         query: A natural-language search query.
         k: Number of passages to return (default 6).
-        source_type: Optionally filter to one of 'statute', 'practice_book',
-            'case', or 'case_file'.
+        source_type: Optionally filter to a corpus source type such as
+            'statute', 'practice_book', 'case', 'court_form',
+            'court_guide', 'law_library_guide', or 'case_file'.
 
     Returns:
         A formatted list of passages, each with its citation and source path.
         Use these passages — and only these passages — to ground your answer.
     """
-    vs = _get_vectorstore()
     filter_ = {"source_type": source_type} if source_type else None
-    docs = vs.similarity_search(query, k=k, filter=filter_)
+    docs = _vs().similarity_search(query, k=k, filter=filter_)
 
     if not docs:
         return "No passages found in the corpus for that query."

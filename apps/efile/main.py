@@ -5,9 +5,9 @@ Usage:
     python -m efile.main pull --crn 5124226 --headed
     python -m efile.main login            # one-time interactive login
 
-By design, this app only downloads. It does NOT push files into Chroma —
-that's `python -m ingest.main data/case/efile/<crn>/docs/` after the fact,
-exactly as we wanted ingestion to stay separate.
+By design, this app only downloads. It does NOT push files into the
+vector store — that's `python -m ingest.main data/case/efile/<crn>/docs/`
+after the fact, exactly as we wanted ingestion to stay separate.
 """
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def pull(
     )
     console.print(f"Manifest: {out_dir / 'manifest.json'}")
     console.print(
-        f"To ingest the new PDFs into Chroma, run:\n"
+        f"To ingest the new PDFs into pgvector, run:\n"
         f"  [cyan]python -m ingest.main {out_dir / 'docs'}[/cyan]"
     )
 

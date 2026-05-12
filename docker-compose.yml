@@ -1,0 +1,21 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: lawagent-db
+    environment:
+      POSTGRES_USER: lawagent
+      POSTGRES_PASSWORD: lawagent
+      POSTGRES_DB: lawagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - lawagent-db-data:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lawagent -d lawagent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  lawagent-db-data:
