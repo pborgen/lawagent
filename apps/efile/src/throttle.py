@@ -2,38 +2,25 @@
 
 The CT Judicial Branch portal is not a high-traffic API; hammering
 it gets you logged out (and potentially flagged). Every navigation
-and download goes through `polite_wait()`.
-
-Tune via env vars:
-    EFILE_MIN_WAIT_SECONDS         (default 2)
-    EFILE_MAX_WAIT_SECONDS         (default 5)
-    EFILE_DOWNLOAD_DELAY_SECONDS   (default 1)
+and download goes through `polite_wait()`. Tunables come from
+`settings.get_settings()` (see `EFILE_*_SECONDS` in .env).
 """
 from __future__ import annotations
 
-import os
 import random
 import time
 from typing import Callable, TypeVar
+
+from settings import get_settings
 
 
 T = TypeVar("T")
 
 
-def _env_float(name: str, default: float) -> float:
-    raw = os.getenv(name)
-    if raw is None or raw.strip() == "":
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        return default
-
-
 def polite_wait(label: str = "") -> None:
     """Sleep a random duration between EFILE_MIN_WAIT_SECONDS and EFILE_MAX_WAIT_SECONDS."""
-    lo = _env_float("EFILE_MIN_WAIT_SECONDS", 2.0)
-    hi = _env_float("EFILE_MAX_WAIT_SECONDS", 5.0)
+    s = get_settings()
+    lo, hi = s.efile_min_wait_seconds, s.efile_max_wait_seconds
     if hi < lo:
         lo, hi = hi, lo
     delay = random.uniform(lo, hi)
@@ -46,8 +33,7 @@ def polite_wait(label: str = "") -> None:
 
 def download_delay() -> None:
     """Extra short pause before initiating a file download."""
-    delay = _env_float("EFILE_DOWNLOAD_DELAY_SECONDS", 1.0)
-    time.sleep(delay)
+    time.sleep(get_settings().efile_download_delay_seconds)
 
 
 def with_retry(

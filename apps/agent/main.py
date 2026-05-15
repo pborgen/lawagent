@@ -5,14 +5,12 @@ agent app is runnable on its own for quick checks.
 """
 from __future__ import annotations
 
-from dotenv import load_dotenv
 from rich.console import Console
 
 from agent.src.graph import ask
 
 
 def main() -> None:
-    load_dotenv()
     console = Console()
     question = "What factors must a Connecticut court consider when awarding alimony under § 46b-82?"
     console.print(f"[bold]Q:[/bold] {question}\n")

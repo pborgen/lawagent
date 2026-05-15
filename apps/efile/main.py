@@ -11,15 +11,13 @@ after the fact, exactly as we wanted ingestion to stay separate.
 """
 from __future__ import annotations
 
-import os
-
 import typer
-from dotenv import load_dotenv
 from rich.console import Console
 
 from efile.src.auth import authenticated_context
 from efile.src.case import fetch_case_detail
 from efile.src.download import case_dir, download_documents
+from settings import get_settings
 
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -33,7 +31,6 @@ def login(
     ),
 ) -> None:
     """Log in once and cache the session in EFILE_STORAGE_STATE."""
-    load_dotenv()
     with authenticated_context(headless=not headed, force_login=True):
         console.print("[green]✓[/green] Logged in and saved storage_state.")
 
@@ -51,8 +48,7 @@ def pull(
     ),
 ) -> None:
     """Fetch the case detail page and download every document in the docket."""
-    load_dotenv()
-    crn = crn or os.getenv("EFILE_CRN") or ""
+    crn = crn or get_settings().efile_crn or ""
     if not crn:
         console.print("[red]No CRN provided. Set EFILE_CRN or pass --crn.[/red]")
         raise typer.Exit(code=1)

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from langchain_core.language_models import BaseChatModel
+
+from settings import get_settings
 
 
 # To add a new provider:
@@ -29,28 +30,22 @@ def get_chat_model(
 
     Resolution order for each parameter:
         1. Explicit argument.
-        2. Environment variable.
+        2. Settings (env / .env).
         3. Hard-coded default in this module.
-
-    Environment variables:
-        LAWAGENT_LLM_PROVIDER     'anthropic' (default) | 'openai'
-        LAWAGENT_LLM_MODEL        provider-specific model id
-        LAWAGENT_LLM_TEMPERATURE  float, default 0
-        LAWAGENT_LLM_MAX_TOKENS   int, default 4096
     """
-    provider = (provider or os.getenv("LAWAGENT_LLM_PROVIDER") or "anthropic").lower()
+    s = get_settings()
+    provider = (provider or s.llm_provider).lower()
     if provider not in PROVIDERS:
         raise ValueError(
-            f"Unknown LAWAGENT_LLM_PROVIDER={provider!r}. "
+            f"Unknown llm provider {provider!r}. "
             f"Supported: {', '.join(PROVIDERS)}."
         )
 
-    model = model or os.getenv("LAWAGENT_LLM_MODEL") or DEFAULT_MODELS[provider]
-
+    model = model or s.llm_model or DEFAULT_MODELS[provider]
     if temperature is None:
-        temperature = float(os.getenv("LAWAGENT_LLM_TEMPERATURE", "0"))
+        temperature = s.llm_temperature
     if max_tokens is None:
-        max_tokens = int(os.getenv("LAWAGENT_LLM_MAX_TOKENS", "4096"))
+        max_tokens = s.llm_max_tokens
 
     return _build_model(provider, model, temperature, max_tokens)
 

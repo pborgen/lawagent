@@ -15,7 +15,6 @@ import sys
 from pathlib import Path
 
 import typer
-from dotenv import load_dotenv
 from rich.console import Console
 
 from ingestion import discover_files, write_to_vectorstore
@@ -61,7 +60,6 @@ def fetch_public(
     ),
 ) -> None:
     """Fetch a starter set of official CT divorce sources into data/raw/."""
-    load_dotenv()
     manifest = fetch_public_starter(
         out_dir=out_dir,
         force=force,
@@ -100,8 +98,6 @@ def ingest(
         help="Parse and chunk files without embedding or writing to the vector store.",
     ),
 ) -> None:
-    load_dotenv()
-
     files = discover_files(source)
     if not files:
         console.print(f"[yellow]No .txt/.md files found under {source}.[/yellow]")

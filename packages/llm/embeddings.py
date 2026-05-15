@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from langchain_core.embeddings import Embeddings  # pyright: ignore[reportMissingImports]
+
+from settings import get_settings
 
 
 PROVIDERS = ("voyage", "openai")
@@ -20,18 +21,20 @@ def get_embeddings(
 ) -> Embeddings:
     """Return a configured LangChain embeddings model.
 
-    Environment variables:
-        LAWAGENT_EMBEDDINGS         'voyage' (default) | 'openai'
-        LAWAGENT_EMBEDDINGS_MODEL   provider-specific embedding model id
+    Resolution order for each parameter:
+        1. Explicit argument.
+        2. Settings (env / .env).
+        3. Hard-coded default in this module.
     """
-    provider = (provider or os.getenv("LAWAGENT_EMBEDDINGS") or "voyage").lower()
+    s = get_settings()
+    provider = (provider or s.embeddings_provider).lower()
     if provider not in PROVIDERS:
         raise ValueError(
-            f"Unknown LAWAGENT_EMBEDDINGS={provider!r}. "
+            f"Unknown embeddings provider {provider!r}. "
             f"Supported: {', '.join(PROVIDERS)}."
         )
 
-    model = model or os.getenv("LAWAGENT_EMBEDDINGS_MODEL") or DEFAULT_MODELS[provider]
+    model = model or s.embeddings_model or DEFAULT_MODELS[provider]
 
     if provider == "voyage":
         from langchain_voyageai import VoyageAIEmbeddings

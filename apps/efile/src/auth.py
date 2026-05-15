@@ -12,7 +12,6 @@ inputs, and fill in their actual `name` / `id` / CSS selectors.
 """
 from __future__ import annotations
 
-import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, Optional
@@ -20,6 +19,7 @@ from typing import Iterator, Optional
 from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 
 from efile.src.throttle import polite_wait
+from settings import get_settings
 
 
 # ─── TODO: confirm against the live page ─────────────────────────────
@@ -36,22 +36,11 @@ LOGGED_IN_MARKER = "#ctl00_hlnkLogOut"
 
 
 def _storage_state_path() -> Path:
-    return Path(
-        os.getenv(
-            "EFILE_STORAGE_STATE",
-            "./data/case/efile/.storage_state.json",
-        )
-    )
+    return Path(get_settings().efile_storage_state)
 
 
 def _credentials() -> tuple[str, str]:
-    user = os.getenv("EFILE_USERNAME") or ""
-    pwd = os.getenv("EFILE_PASSWORD") or ""
-    if not user or not pwd:
-        raise RuntimeError(
-            "EFILE_USERNAME and EFILE_PASSWORD must be set in your .env."
-        )
-    return user, pwd
+    return get_settings().require_efile_credentials()
 
 
 def _do_login(page: Page) -> None:

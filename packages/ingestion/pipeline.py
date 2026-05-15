@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -9,6 +8,7 @@ from langchain_postgres import PGVector
 from corpus import Chunk
 from ingestion.chunking import chunk_file
 from llm import get_embeddings
+from settings import get_settings
 
 
 DEFAULT_COLLECTION = "ct-divorce"
@@ -34,13 +34,7 @@ def chunk_files(files: Iterable[Path]) -> list[Chunk]:
 
 
 def _resolve_connection(connection: Optional[str]) -> str:
-    url = connection or os.getenv("LAWAGENT_PG_URL")
-    if not url:
-        raise RuntimeError(
-            "LAWAGENT_PG_URL is not set. Example: "
-            "postgresql+psycopg://lawagent:lawagent@localhost:5432/lawagent"
-        )
-    return url
+    return connection or get_settings().require_pg_url()
 
 
 def get_vectorstore(

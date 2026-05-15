@@ -13,15 +13,14 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
-from dotenv import load_dotenv
 from rich.console import Console
 
 from pdf2text.src.extract import extract_pdf, sha256, to_markdown, to_sidecar
+from settings import get_settings
 
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -51,8 +50,7 @@ def convert(
     force: bool = typer.Option(False, help="Re-convert PDFs even if already in the manifest."),
 ) -> None:
     """Convert every PDF under data/case/efile/<crn>/docs/ to markdown + JSON."""
-    load_dotenv()
-    crn = crn or os.getenv("EFILE_CRN") or ""
+    crn = crn or get_settings().efile_crn or ""
     if not crn:
         console.print("[red]No CRN provided. Set EFILE_CRN or pass --crn.[/red]")
         raise typer.Exit(code=1)
