@@ -28,5 +28,6 @@ htmlcov/
 # now live in Postgres (see docker-compose.yml), not on disk.
 data/raw/**
 data/case/**
+data/debug/**
 !data/raw/.gitkeep
 !data/case/.gitkeep
