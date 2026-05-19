@@ -20,19 +20,25 @@ lawagent/
 │   ├── ingest/      # CLI: `python -m ingest.main data/raw/`
 │   ├── agent/       # LangGraph agent: retrieve → reason → cite
 │   ├── cli/         # `lawagent ask|memo|annotate "..."` entrypoint
+│   ├── api/         # FastAPI: HTTP /chat wrapper around the agent
+│   ├── web/         # Next.js frontend — landing page + /chat chatbot
 │   └── efile/       # CT eServices scraper (Playwright); pulls case docs
 ├── packages/
 │   ├── corpus/      # shared schemas (chunks, citations, source types)
 │   ├── store/       # Postgres + pgvector reads/writes (single DB boundary)
 │   ├── ingestion/   # chunking + ingest orchestration (calls store)
 │   └── llm/         # ⭐ single source of truth for chat model + embeddings
+├── config/          # model profiles (profiles.yaml)
 ├── data/            # gitignored: raw docs, vector store, case files
 └── docs/            # requirements
 ```
 
-To swap the LLM, change `LAWAGENT_LLM_PROVIDER` / `LAWAGENT_LLM_MODEL`
-in your `.env`. Code only ever touches `from llm import get_chat_model` —
-nothing in `apps/` constructs models directly.
+To swap models, change `LAWAGENT_PROFILE` in your `.env` — each profile
+bundles a chat model with its matching embeddings (and its own pgvector
+collection). Profiles are defined in `config/profiles.yaml`; add one to
+support a new model. Code only ever touches `from llm import
+get_chat_model` / `get_embeddings` — nothing in `apps/` constructs
+models or picks providers directly.
 
 ## Setup
 
@@ -44,10 +50,10 @@ playwright install chromium  # only needed if you'll use apps/efile
 
 # 2. Configure
 cp .env.example .env
-# fill in ANTHROPIC_API_KEY
-# for hosted embeddings instead of local: set LAWAGENT_EMBEDDINGS=voyage|openai
-# and the matching VOYAGE_API_KEY or OPENAI_API_KEY
-# (and EFILE_USERNAME / EFILE_PASSWORD if you'll scrape eServices)
+# The default profile (LAWAGENT_PROFILE=local) needs no API key.
+# To use a hosted model, set LAWAGENT_PROFILE=anthropic|openai and the
+# matching API keys. Profiles are defined in config/profiles.yaml.
+# (set EFILE_USERNAME / EFILE_PASSWORD too if you'll scrape eServices)
 
 # 3. Start Postgres + pgvector (local dev)
 docker compose up -d db
@@ -69,13 +75,38 @@ python -m ingest.main data/raw/public
 # 6. (Optional) Pull your case from CT eServices
 python -m efile.main pull            # downloads to data/case/efile/<crn>/
 
-# 7. Ask
+# 7. Ask (CLI)
 python -m cli.main ask "What factors does CGS 46b-82 require the court to consider?"
 ```
+
+## Chatbot (web frontend)
+
+The same agent is exposed as a chatbot. It runs as two processes: the
+Python agent API and the Next.js frontend.
+
+```bash
+# Terminal 1 — agent API (FastAPI on http://127.0.0.1:8000)
+lawagent-api
+# or: uvicorn api.main:app --reload --port 8000
+
+# Terminal 2 — web frontend (Next.js on http://localhost:3000)
+cd apps/web
+npm install        # first run only
+npm run dev
+```
+
+Open <http://localhost:3000/chat>. The browser POSTs to the Next.js
+route `/api/chat`, which proxies to the FastAPI `/chat` endpoint — so
+the agent URL stays server-side. To point the frontend at a non-local
+agent, set `AGENT_API_URL` in `apps/web/.env.local` (defaults to
+`http://127.0.0.1:8000`).
 
 ## Stack
 
 Python 3.11+, LangChain + LangGraph, **pgvector on Postgres** (local
-Docker or Aurora/RDS on AWS), Anthropic Claude, and embeddings via
-local sentence-transformers by default (or Voyage / OpenAI via
-`LAWAGENT_EMBEDDINGS`).
+Docker or Aurora/RDS on AWS). Models are chosen by *profile*
+(`config/profiles.yaml`, selected with `LAWAGENT_PROFILE`). The default
+`local` profile runs both **chat model and embeddings locally** with no
+API key — HuggingFace transformers (`Qwen/Qwen2.5-3B-Instruct`) and
+sentence-transformers. The `anthropic` and `openai` profiles swap in
+hosted Claude / GPT models and their embeddings.

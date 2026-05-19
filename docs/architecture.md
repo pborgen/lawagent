@@ -7,8 +7,9 @@ This is a sketch, not a commitment. The spike will pressure-test it.
 - **Language:** Python (matches `socialmedia` repo conventions; LangChain
   is most mature in Python).
 - **Agent framework:** LangChain (and likely LangGraph for the agent loop).
-- **LLM:** Anthropic Claude via the Anthropic SDK (default). Chosen for
-  long context (good for legal docs) and citation-friendly outputs.
+- **LLM:** chosen per profile (`config/profiles.yaml`). The `local`
+  profile (default) runs HuggingFace transformers in-process with no
+  API key; the `anthropic` / `openai` profiles use hosted Claude / GPT.
 - **Embeddings:** local sentence-transformers by default
   (`BAAI/bge-small-en-v1.5`); optional hosted `voyage-3` or OpenAI
   `text-embedding-3-small`. All wired through `llm.get_embeddings()`.
@@ -30,11 +31,15 @@ lawagent/
 │   ├── ingest/                # CLI: `python -m ingest.main data/raw/`
 │   ├── agent/                 # LangGraph trial-prep agent
 │   ├── cli/                   # `lawagent` entrypoint
+│   ├── api/                   # FastAPI: HTTP /chat wrapper around the agent
+│   ├── web/                   # Next.js frontend (landing page + /chat chatbot)
 │   └── efile/                 # CT eServices scraper (Playwright)
 ├── packages/
 │   ├── corpus/                # shared schemas (Chunk, DocumentMetadata, Citation)
+│   ├── store/                 # Postgres + pgvector access (single DB boundary)
 │   ├── ingestion/             # chunking + ingest pipeline (separate from agent)
 │   └── llm/                   # ⭐ chat model + embeddings — single source of truth
+├── config/profiles.yaml       # model profiles (chat + embeddings bundles)
 ├── data/
 │   ├── raw/                   # source documents (gitignored)
 │   └── case/                  # the author's private case docs (gitignored)
@@ -65,11 +70,16 @@ and download to avoid getting timed out by the portal.
 ### Why `packages/llm/` is the single source of truth
 
 Every chat-model and embedding-model construction goes through
-`llm.get_chat_model()` / `llm.get_embeddings()`. Provider, model,
-temperature, and max-tokens are all driven by env vars
-(`LAWAGENT_LLM_PROVIDER`, `LAWAGENT_LLM_MODEL`, etc.), so swapping
-between Claude and GPT — or trying a cheaper model in dev — is a
-.env change, not a code change.
+`llm.get_chat_model()` / `llm.get_embeddings()`. Which models those
+return is set by the active *profile* — a named chat + embeddings
+bundle defined in `config/profiles.yaml` and selected with
+`LAWAGENT_PROFILE`. Swapping between local, Claude, and GPT is a
+one-line .env change; adding a model is one YAML entry.
+
+Profiles bundle chat and embeddings on purpose: a pgvector collection
+is built with one specific embeddings model, so each profile gets its
+own collection (`llm.active_collection()`) and switching profiles never
+queries vectors of the wrong dimension.
 
 `data/` is gitignored. The author's own case documents live there and
 must never be committed.
@@ -91,10 +101,13 @@ must never be committed.
      annotated). Every claim is anchored to a retrieved chunk so cites
      can be checked deterministically.
 
-3. **CLI / surface** (`apps/cli`):
-   - `lawagent ask "..."` → short answer
-   - `lawagent memo "..."` → memo
-   - `lawagent annotate <statute>` → annotated view
+3. **Surfaces** — two ways in, one agent:
+   - **CLI** (`apps/cli`): `lawagent ask|memo|annotate "..."`.
+   - **Chatbot** (`apps/web` → `apps/api`): the Next.js frontend POSTs
+     to its own `/api/chat` route, which proxies to the FastAPI
+     `/chat` endpoint in `apps/api`. FastAPI is a thin wrapper around
+     the same `agent.ask()` the CLI calls — no retrieval or prompting
+     logic is duplicated in TypeScript.
 
 ## Citation discipline
 

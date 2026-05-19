@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+import BrandLogo from "@/components/BrandLogo";
+
 const proofPoints = [
   {
     title: "Grounded in Connecticut law",
@@ -67,19 +71,20 @@ export default function Home() {
       <div className="mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 pt-4 sm:px-6 lg:px-8">
         <header className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-slate-950/80 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-            <a className="text-sm font-semibold tracking-[0.24em] text-sky-200" href="#">
-              DIVORSE.AI
-            </a>
+            <BrandLogo href="/" />
             <nav className="flex items-center gap-4 text-sm text-slate-300">
-              <a className="transition hover:text-white" href="#how-it-works">
+              <a className="hidden transition hover:text-white sm:inline" href="#how-it-works">
                 How it works
               </a>
-              <a className="transition hover:text-white" href="#preview">
-                Preview
-              </a>
-              <a className="transition hover:text-white" href="#faq">
+              <a className="hidden transition hover:text-white sm:inline" href="#faq">
                 FAQ
               </a>
+              <Link
+                className="rounded-full bg-sky-400 px-3 py-1.5 font-semibold text-slate-950 transition hover:bg-sky-300"
+                href="/chat"
+              >
+                Open assistant
+              </Link>
             </nav>
           </div>
         </header>
@@ -105,12 +110,12 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <a
+              <Link
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-sky-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300"
-                href="#preview"
+                href="/chat"
               >
-                See the product preview
-              </a>
+                Ask the assistant
+              </Link>
               <a
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/35 hover:bg-white/5"
                 href="#trust"

@@ -1,0 +1,63 @@
+# Model profiles for lawagent.
+#
+# A profile bundles a chat model with the embeddings model it must be
+# paired with. The app picks one via LAWAGENT_PROFILE in .env; if that is
+# unset, the `default` below applies.
+#
+# Why bundle chat + embeddings: a pgvector collection is built with one
+# specific embeddings model. Each profile gets its own collection — the
+# embeddings model name is slugged onto `collection_base` — so switching
+# profiles never queries vectors of the wrong dimension. Re-ingest once
+# per profile you intend to use.
+#
+# To add a model: add a new entry under `profiles:`. Loader + validation
+# live in packages/llm/profiles.py.
+
+default: local
+
+# Base name for the pgvector collection. Final name per profile is
+# "<collection_base>__<embeddings-model-slug>".
+collection_base: ct-divorce
+
+profiles:
+  local:
+    description: >-
+      Fully local — no API keys. HuggingFace transformers for chat,
+      sentence-transformers for embeddings. Run `uv sync --group local`;
+      first use downloads model weights. The chat model must support
+      tool calling (the agent binds a retrieve tool).
+    chat:
+      provider: local
+      model: Qwen/Qwen2.5-3B-Instruct
+      temperature: 0
+      max_tokens: 4096
+      device: cpu          # cpu | cuda | mps
+    embeddings:
+      provider: local
+      model: BAAI/bge-small-en-v1.5
+      device: cpu          # cpu | cuda | mps
+
+  anthropic:
+    description: >-
+      Anthropic Claude for chat, Voyage for embeddings.
+      Needs ANTHROPIC_API_KEY and VOYAGE_API_KEY in .env.
+    chat:
+      provider: anthropic
+      model: claude-opus-4-7
+      temperature: 0
+      max_tokens: 4096
+    embeddings:
+      provider: voyage
+      model: voyage-3
+
+  openai:
+    description: >-
+      OpenAI GPT for chat and embeddings. Needs OPENAI_API_KEY in .env.
+    chat:
+      provider: openai
+      model: gpt-4o
+      temperature: 0
+      max_tokens: 4096
+    embeddings:
+      provider: openai
+      model: text-embedding-3-small

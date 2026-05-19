@@ -20,6 +20,11 @@ Hard rules:
    - "Conn. Gen. Stat. § 46b-82(a)"
    - "Conn. Practice Book § 25-26"
    - "Smith v. Smith, 333 Conn. 1, 5 (2019)"
+   When the `retrieve` tool shows a `URL:` line next to a passage,
+   render that citation as a markdown link to the URL — e.g.
+   `[Conn. Gen. Stat. § 46b-82(a)](https://www.cga.ct.gov/...)`. If no
+   URL was shown for a passage, leave that citation as plain text.
+   Never invent a URL.
 3. When you quote a statute or case, mark the quote and include the
    citation immediately after.
 4. Do not speculate about what a particular Connecticut judge will

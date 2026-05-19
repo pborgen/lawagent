@@ -5,7 +5,7 @@ from typing import Iterable, Optional
 
 from corpus import Chunk
 from ingestion.chunking import chunk_file
-from store import DEFAULT_COLLECTION, write_chunks
+from store import write_chunks
 
 
 SUPPORTED_SUFFIXES = {".txt", ".md"}
@@ -32,13 +32,14 @@ def chunk_files(files: Iterable[Path]) -> list[Chunk]:
 def ingest(
     source: Path,
     *,
-    collection: str = DEFAULT_COLLECTION,
+    collection: Optional[str] = None,
     connection: Optional[str] = None,
 ) -> tuple[list[Path], list[Chunk]]:
     """End-to-end: discover → chunk → embed → write.
 
-    Returns the discovered files and the resulting chunks so callers
-    (CLI, tests) can report on what happened.
+    `collection` defaults to the active profile's collection. Returns the
+    discovered files and the resulting chunks so callers (CLI, tests) can
+    report on what happened.
     """
     files = discover_files(source)
     chunks = chunk_files(files)

@@ -21,7 +21,10 @@ dependencies = [
     "pydantic-settings>=2.4",
     "typer>=0.12",
     "python-dotenv>=1",
+    "pyyaml>=6",
     "rich>=13",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
     "playwright>=1.47",
     "beautifulsoup4>=4.12",
     "pymupdf>=1.24",
@@ -31,7 +34,7 @@ dependencies = [
 
 # Discover every top-level package under apps/ and packages/. With this
 # in place, `pip install -e .` (or `uv sync`) makes `agent`, `cli`,
-# `ingest`, `corpus`, `ingestion`, `store`, and `llm` all importable.
+# `ingest`, `api`, `corpus`, `ingestion`, `store`, and `llm` all importable.
 [tool.setuptools.packages.find]
 where = ["apps", "packages"]
 
@@ -45,13 +48,20 @@ dev = [
 local = [
     "langchain-huggingface>=0.1",
     "sentence-transformers>=3.0",
+    "transformers>=4.45",
+    "accelerate>=0.30",
+    "hf-transfer>=0.1",
 ]
 
 [project.optional-dependencies]
 local = [
     "langchain-huggingface>=0.1",
     "sentence-transformers>=3.0",
+    "transformers>=4.45",
+    "accelerate>=0.30",
+    "hf-transfer>=0.1",
 ]
 
 [project.scripts]
 lawagent = "cli.main:app"
+lawagent-api = "api.main:main"

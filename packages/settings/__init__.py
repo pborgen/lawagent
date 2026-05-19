@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from pydantic import Field, model_validator
@@ -36,10 +36,6 @@ _console = Console(stderr=True)
 load_dotenv()
 
 
-LLMProvider = Literal["anthropic", "openai"]
-EmbeddingsProvider = Literal["voyage", "openai", "local"]
-
-
 class Settings(BaseSettings):
     """All env-driven config, in one typed object.
 
@@ -57,25 +53,14 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    # --- LLM (chat) ---
-    llm_provider: LLMProvider = Field(
-        default="anthropic", alias="LAWAGENT_LLM_PROVIDER"
-    )
-    llm_model: Optional[str] = Field(default=None, alias="LAWAGENT_LLM_MODEL")
-    llm_temperature: float = Field(default=0.0, alias="LAWAGENT_LLM_TEMPERATURE")
-    llm_max_tokens: int = Field(default=4096, alias="LAWAGENT_LLM_MAX_TOKENS")
-
-    # --- Embeddings ---
-    embeddings_provider: EmbeddingsProvider = Field(
-        default="local", alias="LAWAGENT_EMBEDDINGS"
-    )
-    embeddings_model: Optional[str] = Field(
-        default=None, alias="LAWAGENT_EMBEDDINGS_MODEL"
-    )
-    embeddings_device: str = Field(
-        default="cpu",
-        alias="LAWAGENT_EMBEDDINGS_DEVICE",
-        description="Device for local embeddings: cpu, cuda, or mps.",
+    # --- Model profile ---
+    # Which chat-model + embeddings bundle to use. Profiles are defined in
+    # config/profiles.yaml; this just names one. Unset → the YAML default.
+    profile: Optional[str] = Field(default=None, alias="LAWAGENT_PROFILE")
+    profiles_file: Optional[str] = Field(
+        default=None,
+        alias="LAWAGENT_PROFILES_FILE",
+        description="Override path to the profiles YAML (default: config/profiles.yaml).",
     )
 
     # --- Vector store (pgvector on Postgres) ---

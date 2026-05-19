@@ -35,6 +35,7 @@ import pytest
 
 from ingestion.pipeline import ingest
 from store import delete_collection, similarity_search
+from llm import get_active_profile
 from settings import get_settings
 
 
@@ -76,7 +77,7 @@ def pg_url() -> str:
     if not _pg_reachable(url):
         pytest.skip(f"Postgres not reachable at {url} — run `docker compose up -d db`")
 
-    provider = settings.embeddings_provider
+    provider = get_active_profile().embeddings.provider
     if provider == "local":
         if not _local_embeddings_available():
             pytest.skip(

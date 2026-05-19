@@ -6,30 +6,37 @@ from langchain_core.documents import Document
 from langchain_postgres import PGVector
 
 from corpus import Chunk
-from llm import get_embeddings
+from llm import active_collection, get_embeddings
 from settings import get_settings
-
-
-DEFAULT_COLLECTION = "ct-divorce"
 
 
 def resolve_connection(connection: Optional[str] = None) -> str:
     return connection or get_settings().require_pg_url()
 
 
+def resolve_collection(collection: Optional[str] = None) -> str:
+    """A collection name, defaulting to the active profile's collection.
+
+    Each profile's embeddings model writes to its own collection — see
+    `llm.active_collection` — so callers normally pass nothing and let
+    the active profile decide.
+    """
+    return collection or active_collection()
+
+
 def get_vectorstore(
     *,
-    collection: str = DEFAULT_COLLECTION,
+    collection: Optional[str] = None,
     connection: Optional[str] = None,
 ) -> PGVector:
-    """Return a PGVector handle for the given collection.
+    """Return a PGVector handle for the given (or active-profile) collection.
 
     Assumes the `vector` extension is already enabled on the target database
     (see docker-compose.yml for local dev).
     """
     return PGVector(
         embeddings=get_embeddings(),
-        collection_name=collection,
+        collection_name=resolve_collection(collection),
         connection=resolve_connection(connection),
         use_jsonb=True,
     )
@@ -38,7 +45,7 @@ def get_vectorstore(
 def write_chunks(
     chunks: list[Chunk],
     *,
-    collection: str = DEFAULT_COLLECTION,
+    collection: Optional[str] = None,
     connection: Optional[str] = None,
 ) -> None:
     """Embed chunk texts and upsert them into the vector store."""
@@ -54,7 +61,7 @@ def similarity_search(
     query: str,
     *,
     k: int = 6,
-    collection: str = DEFAULT_COLLECTION,
+    collection: Optional[str] = None,
     connection: Optional[str] = None,
     filter: Optional[dict[str, Any]] = None,
 ) -> list[Document]:
@@ -66,7 +73,7 @@ def similarity_search(
 
 def delete_collection(
     *,
-    collection: str,
+    collection: Optional[str] = None,
     connection: Optional[str] = None,
 ) -> None:
     """Drop a collection and all of its embeddings."""

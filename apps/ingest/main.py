@@ -13,13 +13,14 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
 
 from ingestion import discover_files
 from ingestion.chunking import chunk_file
-from store import DEFAULT_COLLECTION, write_chunks
+from store import active_collection, write_chunks
 from ingest.src.fetch_public import fetch_public_starter
 
 
@@ -86,8 +87,9 @@ def fetch_public(
 @app.command()
 def ingest(
     source: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=True),
-    collection: str = typer.Option(
-        DEFAULT_COLLECTION, help="pgvector collection name."
+    collection: Optional[str] = typer.Option(
+        None,
+        help="pgvector collection name. Defaults to the active profile's collection.",
     ),
     connection: str = typer.Option(
         None,
@@ -130,11 +132,12 @@ def ingest(
         )
         return
 
+    target = collection or active_collection()
     console.print(f"\nEmbedding [bold]{len(chunks)}[/bold] chunks…")
-    write_chunks(chunks, collection=collection, connection=connection)
+    write_chunks(chunks, collection=target, connection=connection)
     console.print(
         f"[green]✓[/green] Ingested {len(chunks)} chunks from {len(files)} files "
-        f"into [bold]{collection}[/bold]"
+        f"into [bold]{target}[/bold]"
     )
 
 

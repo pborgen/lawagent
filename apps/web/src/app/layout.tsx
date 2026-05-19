@@ -14,6 +14,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://divorse.ai"),
+  icons: {
+    icon: "/brand/logo-mark.png",
+    apple: "/brand/logo-mark.png",
+  },
   title: "divorse.ai | Connecticut Divorce Prep",
   description:
     "A mobile-first frontend for a Connecticut divorce prep assistant with citation-backed answers and clear product guardrails.",
