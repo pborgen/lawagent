@@ -45,7 +45,7 @@ There are **two ingest streams** that converge on the same vector store:
                                           │
                                           ▼
                               agent  retrieve()  tool
-                              (similarity_search via get_vectorstore)
+                              (store.similarity_search)
                                           │
                                           ▼
                               cli:  ask / memo / annotate
@@ -127,7 +127,7 @@ embeds the chunks, and writes them to **Postgres + pgvector**.
 ## Stage 4 — Read: the agent and CLI
 
 Everything downstream reads from pgvector through one function,
-`ingestion.get_vectorstore()` — the agent never imports from `apps/ingest`.
+`store.similarity_search()` — the agent never imports from `apps/ingest`.
 
 - `apps/agent` exposes a `retrieve(query, k, source_type)` LangGraph tool
   (`apps/agent/src/tools.py`) that runs `similarity_search` against the

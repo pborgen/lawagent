@@ -1,23 +1,15 @@
-"""Ingestion pipeline: turn raw legal documents into a searchable pgvector store.
+"""Ingestion pipeline: turn raw legal documents into searchable chunks.
 
-This package is the only place that knows how to build the corpus.
-The agent app does NOT import from here — it just reads from Postgres
-through `ingestion.pipeline.get_vectorstore()` / `llm.get_embeddings()`.
+Chunking and file discovery live here. Persisting chunks to Postgres is
+delegated to `store.write_chunks`. The agent reads via `store.similarity_search`.
 """
 
 from ingestion.chunking import chunk_file, metadata_from_path
-from ingestion.pipeline import (
-    discover_files,
-    get_vectorstore,
-    ingest,
-    write_to_vectorstore,
-)
+from ingestion.pipeline import discover_files, ingest
 
 __all__ = [
     "chunk_file",
     "metadata_from_path",
     "discover_files",
-    "get_vectorstore",
     "ingest",
-    "write_to_vectorstore",
 ]

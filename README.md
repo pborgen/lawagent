@@ -23,7 +23,8 @@ lawagent/
 │   └── efile/       # CT eServices scraper (Playwright); pulls case docs
 ├── packages/
 │   ├── corpus/      # shared schemas (chunks, citations, source types)
-│   ├── ingestion/   # ingestion pipeline (chunking + write to pgvector)
+│   ├── store/       # Postgres + pgvector reads/writes (single DB boundary)
+│   ├── ingestion/   # chunking + ingest orchestration (calls store)
 │   └── llm/         # ⭐ single source of truth for chat model + embeddings
 ├── data/            # gitignored: raw docs, vector store, case files
 └── docs/            # requirements

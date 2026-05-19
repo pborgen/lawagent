@@ -44,9 +44,10 @@ lawagent/
 ### Why ingestion is its own package
 
 `packages/ingestion/` exists so the agent never imports anything from
-`apps/ingest/`. The agent reads from the pgvector store via
-`ingestion.get_vectorstore()`; ingestion writes through the same
-function. Everything else stays decoupled.
+`apps/ingest/`. All Postgres/pgvector access goes through
+`packages/store/` (`write_chunks`, `similarity_search`). Ingestion
+chunks files then calls `store`; the agent retrieves via `store`.
+Everything else stays decoupled.
 
 ### Why `apps/efile/` is a separate process
 

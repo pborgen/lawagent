@@ -17,8 +17,9 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from ingestion import discover_files, write_to_vectorstore
+from ingestion import discover_files
 from ingestion.chunking import chunk_file
+from store import DEFAULT_COLLECTION, write_chunks
 from ingest.src.fetch_public import fetch_public_starter
 
 
@@ -86,7 +87,7 @@ def fetch_public(
 def ingest(
     source: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=True),
     collection: str = typer.Option(
-        "ct-divorce", help="pgvector collection name."
+        DEFAULT_COLLECTION, help="pgvector collection name."
     ),
     connection: str = typer.Option(
         None,
@@ -130,7 +131,7 @@ def ingest(
         return
 
     console.print(f"\nEmbedding [bold]{len(chunks)}[/bold] chunks…")
-    write_to_vectorstore(chunks, collection=collection, connection=connection)
+    write_chunks(chunks, collection=collection, connection=connection)
     console.print(
         f"[green]✓[/green] Ingested {len(chunks)} chunks from {len(files)} files "
         f"into [bold]{collection}[/bold]"

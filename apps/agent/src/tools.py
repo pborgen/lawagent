@@ -3,19 +3,8 @@ from __future__ import annotations
 from typing import Optional
 
 from langchain_core.tools import tool
-from langchain_postgres import PGVector
 
-from ingestion import get_vectorstore
-
-
-_VECTORSTORE: Optional[PGVector] = None
-
-
-def _vs() -> PGVector:
-    global _VECTORSTORE
-    if _VECTORSTORE is None:
-        _VECTORSTORE = get_vectorstore()
-    return _VECTORSTORE
+from store import similarity_search
 
 
 @tool
@@ -34,7 +23,7 @@ def retrieve(query: str, k: int = 6, source_type: Optional[str] = None) -> str:
         Use these passages — and only these passages — to ground your answer.
     """
     filter_ = {"source_type": source_type} if source_type else None
-    docs = _vs().similarity_search(query, k=k, filter=filter_)
+    docs = similarity_search(query, k=k, filter=filter_)
 
     if not docs:
         return "No passages found in the corpus for that query."

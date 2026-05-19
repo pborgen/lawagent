@@ -31,7 +31,7 @@ dependencies = [
 
 # Discover every top-level package under apps/ and packages/. With this
 # in place, `pip install -e .` (or `uv sync`) makes `agent`, `cli`,
-# `ingest`, `corpus`, `ingestion`, and `llm` all importable.
+# `ingest`, `corpus`, `ingestion`, `store`, and `llm` all importable.
 [tool.setuptools.packages.find]
 where = ["apps", "packages"]
 

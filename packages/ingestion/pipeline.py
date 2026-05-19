@@ -3,15 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable, Optional
 
-from langchain_postgres import PGVector
-
 from corpus import Chunk
 from ingestion.chunking import chunk_file
-from llm import get_embeddings
-from settings import get_settings
+from store import DEFAULT_COLLECTION, write_chunks
 
 
-DEFAULT_COLLECTION = "ct-divorce"
 SUPPORTED_SUFFIXES = {".txt", ".md"}
 
 
@@ -33,42 +29,6 @@ def chunk_files(files: Iterable[Path]) -> list[Chunk]:
     return chunks
 
 
-def _resolve_connection(connection: Optional[str]) -> str:
-    return connection or get_settings().require_pg_url()
-
-
-def get_vectorstore(
-    *,
-    collection: str = DEFAULT_COLLECTION,
-    connection: Optional[str] = None,
-) -> PGVector:
-    """Return a PGVector handle for the given collection.
-
-    Assumes the `vector` extension is already enabled on the target database
-    (see docker-compose.yml for local dev).
-    """
-    return PGVector(
-        embeddings=get_embeddings(),
-        collection_name=collection,
-        connection=_resolve_connection(connection),
-        use_jsonb=True,
-    )
-
-
-def write_to_vectorstore(
-    chunks: list[Chunk],
-    *,
-    collection: str = DEFAULT_COLLECTION,
-    connection: Optional[str] = None,
-) -> None:
-    vectorstore = get_vectorstore(collection=collection, connection=connection)
-    vectorstore.add_texts(
-        texts=[c.text for c in chunks],
-        metadatas=[c.to_metadata_dict() for c in chunks],
-        ids=[c.id for c in chunks],
-    )
-
-
 def ingest(
     source: Path,
     *,
@@ -83,5 +43,5 @@ def ingest(
     files = discover_files(source)
     chunks = chunk_files(files)
     if chunks:
-        write_to_vectorstore(chunks, collection=collection, connection=connection)
+        write_chunks(chunks, collection=collection, connection=connection)
     return files, chunks

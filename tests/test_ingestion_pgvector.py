@@ -3,10 +3,10 @@
 This is the part of the app that takes document data and stores it in the
 vector DB: `packages/ingestion/pipeline.py`. The flow is
 
-    discover_files()  →  chunk_files()  →  write_to_vectorstore()
+    discover_files()  →  chunk_files()  →  write_chunks()
        find .txt/.md      split into Chunks    embed + INSERT into pgvector
 
-`write_to_vectorstore()` calls `PGVector.add_texts()`, which does two things
+`store.write_chunks()` calls `PGVector.add_texts()`, which does two things
 in one step: runs each chunk's text through the embeddings model (Voyage or
 OpenAI) and inserts the resulting vector + JSONB metadata into Postgres.
 
@@ -33,7 +33,8 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from ingestion.pipeline import get_vectorstore, ingest
+from ingestion.pipeline import ingest
+from store import delete_collection, similarity_search
 from settings import get_settings
 
 
@@ -99,7 +100,7 @@ def collection(pg_url: str):
     yield name
     # Teardown: drop the collection so the DB is left exactly as we found it.
     try:
-        get_vectorstore(collection=name, connection=pg_url).delete_collection()
+        delete_collection(collection=name, connection=pg_url)
     except Exception:
         pass
 
@@ -135,8 +136,12 @@ def test_ingest_writes_a_document_into_pgvector(tmp_path: Path, pg_url: str, col
     # --- 4. Assert: the row is really in pgvector and semantically findable --
     # This is the payoff — we query with words that do NOT appear verbatim in
     # the text, so a hit proves the embedding + vector search round-tripped.
-    store = get_vectorstore(collection=collection, connection=pg_url)
-    hits = store.similarity_search("who decides where a child lives?", k=1)
+    hits = similarity_search(
+        "who decides where a child lives?",
+        k=1,
+        collection=collection,
+        connection=pg_url,
+    )
     print(f"[search] {len(hits)} hit(s) for the semantic query")
 
     assert hits, "expected the ingested chunk to come back from a vector search"
