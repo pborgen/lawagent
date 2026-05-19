@@ -37,12 +37,15 @@ nothing in `apps/` constructs models directly.
 
 ```bash
 # 1. Install (uv recommended; pip works too)
-uv sync                      # or: pip install -e .
+uv sync --group local        # default embeddings are local (CPU, no API key)
+# or: pip install -e ".[local]"
 playwright install chromium  # only needed if you'll use apps/efile
 
 # 2. Configure
 cp .env.example .env
-# fill in ANTHROPIC_API_KEY and one of VOYAGE_API_KEY / OPENAI_API_KEY
+# fill in ANTHROPIC_API_KEY
+# for hosted embeddings instead of local: set LAWAGENT_EMBEDDINGS=voyage|openai
+# and the matching VOYAGE_API_KEY or OPENAI_API_KEY
 # (and EFILE_USERNAME / EFILE_PASSWORD if you'll scrape eServices)
 
 # 3. Start Postgres + pgvector (local dev)
@@ -72,5 +75,6 @@ python -m cli.main ask "What factors does CGS 46b-82 require the court to consid
 ## Stack
 
 Python 3.11+, LangChain + LangGraph, **pgvector on Postgres** (local
-Docker or Aurora/RDS on AWS), Anthropic Claude, Voyage or OpenAI
-embeddings.
+Docker or Aurora/RDS on AWS), Anthropic Claude, and embeddings via
+local sentence-transformers by default (or Voyage / OpenAI via
+`LAWAGENT_EMBEDDINGS`).

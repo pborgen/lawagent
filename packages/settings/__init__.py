@@ -37,7 +37,7 @@ load_dotenv()
 
 
 LLMProvider = Literal["anthropic", "openai"]
-EmbeddingsProvider = Literal["voyage", "openai"]
+EmbeddingsProvider = Literal["voyage", "openai", "local"]
 
 
 class Settings(BaseSettings):
@@ -67,10 +67,15 @@ class Settings(BaseSettings):
 
     # --- Embeddings ---
     embeddings_provider: EmbeddingsProvider = Field(
-        default="voyage", alias="LAWAGENT_EMBEDDINGS"
+        default="local", alias="LAWAGENT_EMBEDDINGS"
     )
     embeddings_model: Optional[str] = Field(
         default=None, alias="LAWAGENT_EMBEDDINGS_MODEL"
+    )
+    embeddings_device: str = Field(
+        default="cpu",
+        alias="LAWAGENT_EMBEDDINGS_DEVICE",
+        description="Device for local embeddings: cpu, cuda, or mps.",
     )
 
     # --- Vector store (pgvector on Postgres) ---

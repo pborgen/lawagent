@@ -7,12 +7,19 @@ from langchain_core.embeddings import Embeddings  # pyright: ignore[reportMissin
 from settings import get_settings
 
 
-PROVIDERS = ("voyage", "openai")
+PROVIDERS = ("voyage", "openai", "local")
 
 DEFAULT_MODELS: dict[str, str] = {
     "voyage": "voyage-3",
     "openai": "text-embedding-3-small",
+    # sentence-transformers on CPU; no API key. First run downloads weights.
+    "local": "BAAI/bge-small-en-v1.5",
 }
+
+_LOCAL_DEPS_HINT = (
+    "Install local embedding deps: uv sync --group local "
+    "(or: pip install 'lawagent-monorepo[local]')"
+)
 
 
 def get_embeddings(
@@ -25,6 +32,9 @@ def get_embeddings(
         1. Explicit argument.
         2. Settings (env / .env).
         3. Hard-coded default in this module.
+
+    Switching providers changes vector dimension — re-ingest into a new
+    collection (or drop the old one) before querying.
     """
     s = get_settings()
     provider = (provider or s.embeddings_provider).lower()
@@ -45,5 +55,17 @@ def get_embeddings(
         from langchain_openai import OpenAIEmbeddings
 
         return OpenAIEmbeddings(model=model)
+
+    if provider == "local":
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+        except ImportError as exc:
+            raise ImportError(_LOCAL_DEPS_HINT) from exc
+
+        return HuggingFaceEmbeddings(
+            model_name=model,
+            model_kwargs={"device": s.embeddings_device},
+            encode_kwargs={"normalize_embeddings": True},
+        )
 
     raise ValueError(f"Unhandled provider: {provider!r}")

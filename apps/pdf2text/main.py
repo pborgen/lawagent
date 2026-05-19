@@ -44,6 +44,15 @@ def _previous_by_sha(manifest: dict) -> dict[str, dict]:
     return {d["source_sha256"]: d for d in manifest.get("documents", [])}
 
 
+@app.callback()
+def _main() -> None:
+    """PDF → markdown converter.
+
+    No-op callback — keeps `convert` as an explicit subcommand (Typer
+    collapses single-command apps otherwise).
+    """
+
+
 @app.command()
 def convert(
     crn: str = typer.Option(None, help="Case reference number. Defaults to EFILE_CRN."),

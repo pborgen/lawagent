@@ -9,8 +9,9 @@ This is a sketch, not a commitment. The spike will pressure-test it.
 - **Agent framework:** LangChain (and likely LangGraph for the agent loop).
 - **LLM:** Anthropic Claude via the Anthropic SDK (default). Chosen for
   long context (good for legal docs) and citation-friendly outputs.
-- **Embeddings:** hosted — `voyage-3` (default) or OpenAI
-  `text-embedding-3-small`. Both wired through `llm.get_embeddings()`.
+- **Embeddings:** local sentence-transformers by default
+  (`BAAI/bge-small-en-v1.5`); optional hosted `voyage-3` or OpenAI
+  `text-embedding-3-small`. All wired through `llm.get_embeddings()`.
 - **Vector DB:** **pgvector** on Postgres — local Docker for dev,
   Aurora PostgreSQL or RDS PostgreSQL on AWS. Same `langchain-postgres`
   interface in both environments. Chosen for hybrid SQL+vector queries,

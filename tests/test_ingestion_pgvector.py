@@ -37,8 +37,18 @@ from ingestion.pipeline import get_vectorstore, ingest
 from settings import get_settings
 
 
-# Maps the embeddings provider (from settings) to the env var its SDK reads.
+# Maps hosted providers to the env var their SDK reads. Local needs no key.
 _PROVIDER_KEY = {"voyage": "VOYAGE_API_KEY", "openai": "OPENAI_API_KEY"}
+
+
+def _local_embeddings_available() -> bool:
+    try:
+        import langchain_huggingface  # noqa: F401
+        import sentence_transformers  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
 
 
 def _pg_reachable(sqlalchemy_url: str) -> bool:
@@ -65,9 +75,16 @@ def pg_url() -> str:
     if not _pg_reachable(url):
         pytest.skip(f"Postgres not reachable at {url} — run `docker compose up -d db`")
 
-    key = _PROVIDER_KEY[settings.embeddings_provider]
-    if not os.environ.get(key):
-        pytest.skip(f"{key} not set — needed to embed chunks with the real provider")
+    provider = settings.embeddings_provider
+    if provider == "local":
+        if not _local_embeddings_available():
+            pytest.skip(
+                "local embeddings deps not installed — run `uv sync --group local`"
+            )
+    else:
+        key = _PROVIDER_KEY[provider]
+        if not os.environ.get(key):
+            pytest.skip(f"{key} not set — needed to embed chunks with the real provider")
     return url
 
 
