@@ -6,7 +6,7 @@ from langchain_core.documents import Document
 from langchain_postgres import PGVector
 
 from corpus import Chunk
-from llm import active_collection, get_embeddings
+from llm import active_collection, get_active_profile, get_embeddings
 from settings import get_settings
 
 
@@ -33,12 +33,22 @@ def get_vectorstore(
 
     Assumes the `vector` extension is already enabled on the target database
     (see docker-compose.yml for local dev).
+
+    `collection_metadata` records which embeddings provider+model produced
+    the vectors. It is written to `langchain_pg_collection.cmetadata` only
+    when the collection is first created — existing collections keep the
+    metadata they were tagged with on first ingest.
     """
+    embeddings_cfg = get_active_profile().embeddings
     return PGVector(
         embeddings=get_embeddings(),
         collection_name=resolve_collection(collection),
         connection=resolve_connection(connection),
         use_jsonb=True,
+        collection_metadata={
+            "embeddings_provider": embeddings_cfg.provider,
+            "embeddings_model": embeddings_cfg.model,
+        },
     )
 
 

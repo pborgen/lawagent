@@ -23,8 +23,8 @@ from pydantic import BaseModel, model_validator
 from settings import get_settings
 
 
-ChatProvider = Literal["local", "anthropic", "openai"]
-EmbeddingsProvider = Literal["local", "voyage", "openai"]
+ChatProvider = Literal["local", "ollama", "anthropic", "openai", "bedrock"]
+EmbeddingsProvider = Literal["local", "ollama", "voyage", "openai", "bedrock"]
 
 
 class ChatConfig(BaseModel):
@@ -35,6 +35,7 @@ class ChatConfig(BaseModel):
     temperature: float = 0.0
     max_tokens: int = 4096
     device: str = "cpu"  # `local` provider only: cpu | cuda | mps
+    region: str | None = None  # `bedrock` provider only; falls back to AWS_REGION
 
 
 class EmbeddingsConfig(BaseModel):
@@ -43,6 +44,7 @@ class EmbeddingsConfig(BaseModel):
     provider: EmbeddingsProvider
     model: str
     device: str = "cpu"  # `local` provider only: cpu | cuda | mps
+    region: str | None = None  # `bedrock` provider only; falls back to AWS_REGION
 
 
 class Profile(BaseModel):

@@ -33,11 +33,14 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
 
+from llm import active_profile_name
 from settings import get_settings
+from store import active_collection as resolve_active_collection
 
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -98,8 +101,10 @@ def run(
     crn: str = typer.Option(
         None, help="Case reference number. Defaults to EFILE_CRN."
     ),
-    collection: str = typer.Option(
-        "ct-divorce", help="pgvector collection to ingest into."
+    collection: Optional[str] = typer.Option(
+        None,
+        help="pgvector collection to ingest into. "
+        "Defaults to the active profile's per-embeddings-model collection.",
     ),
     refresh: bool = typer.Option(
         False,
@@ -123,8 +128,15 @@ def run(
     py = sys.executable
     overall = time.monotonic()
 
+    # Resolve the active-profile collection up front so the state file
+    # records what was actually written, and a later profile switch
+    # invalidates the "already ingested" skip below.
+    resolved_collection = collection or resolve_active_collection()
+    profile = active_profile_name()
+
     console.print(
-        f"[bold]Pipeline for case {crn}[/bold] → collection '{collection}'"
+        f"[bold]Pipeline for case {crn}[/bold] → "
+        f"collection '{resolved_collection}' (profile '{profile}')"
         f"{'  [yellow](--refresh)[/yellow]' if refresh else ''}\n"
     )
 
@@ -164,22 +176,29 @@ def run(
             prev_state = json.loads(state_path.read_text())
         except json.JSONDecodeError:
             prev_state = {}
+    # Skip Stage 3 only when *everything* matches: text content, the
+    # resolved collection name, AND the profile. A profile switch or a
+    # DB target change will invalidate the skip and force a fresh write.
+    # (A DB wipe with the state file intact still bypasses this — use
+    # --refresh or delete the state file in that case.)
     already_ingested = (
         not refresh
         and not dry_run
         and prev_state.get("text_fingerprint") == fingerprint
-        and prev_state.get("collection") == collection
+        and prev_state.get("collection") == resolved_collection
+        and prev_state.get("profile") == profile
     )
 
     if already_ingested:
         console.print(
             "[yellow]· Stage 3 — ingest — converted text unchanged since "
-            "last ingest, skipping (use --refresh to re-ingest)[/yellow]"
+            "last ingest under this profile, skipping (use --refresh to "
+            "re-ingest)[/yellow]"
         )
     else:
         ingest_argv = [
             py, "-m", "ingest.main", "ingest", str(text_dir),
-            "--collection", collection,
+            "--collection", resolved_collection,
         ]
         if dry_run:
             ingest_argv.append("--dry-run")
@@ -187,7 +206,8 @@ def run(
         if not dry_run:
             state_path.write_text(json.dumps({
                 "crn": crn,
-                "collection": collection,
+                "profile": profile,
+                "collection": resolved_collection,
                 "text_fingerprint": fingerprint,
                 "ingested_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             }, indent=2), encoding="utf-8")
@@ -197,9 +217,9 @@ def run(
     if dry_run:
         outcome = "chunked (dry run — nothing written)"
     elif already_ingested:
-        outcome = f"already up to date in '{collection}'"
+        outcome = f"already up to date in '{resolved_collection}'"
     else:
-        outcome = f"ingested into '{collection}'"
+        outcome = f"ingested into '{resolved_collection}'"
     console.print(
         f"[green]✓[/green] Case [bold]{crn}[/bold]: {outcome} "
         f"[dim]({time.monotonic() - overall:.1f}s total)[/dim]"

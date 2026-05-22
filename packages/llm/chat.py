@@ -43,6 +43,33 @@ def build_chat_model(cfg: ChatConfig) -> BaseChatModel:
             max_tokens=cfg.max_tokens,
         )
 
+    if cfg.provider == "bedrock":
+        # Amazon Bedrock via the Converse API — supports tool calling across
+        # Anthropic / Meta / Mistral / Cohere model families. Credentials and
+        # region come from the standard AWS chain (env, ~/.aws/credentials,
+        # IRSA, etc.); the YAML may override region per profile.
+        from langchain_aws import ChatBedrockConverse
+
+        return ChatBedrockConverse(
+            model=cfg.model,
+            temperature=cfg.temperature,
+            max_tokens=cfg.max_tokens,
+            region_name=cfg.region,
+        )
+
+    if cfg.provider == "ollama":
+        # Quantized local LLM via the Ollama daemon. The model must support
+        # tool calling for the agent's retrieve tool — qwen2.5, llama3.1,
+        # mistral-nemo, etc. do; older small models often don't.
+        # Ollama's HTTP API uses `num_predict`, not `max_tokens`.
+        from langchain_ollama import ChatOllama
+
+        return ChatOllama(
+            model=cfg.model,
+            temperature=cfg.temperature,
+            num_predict=cfg.max_tokens,
+        )
+
     if cfg.provider == "local":
         return _build_local_model(
             cfg.model, cfg.temperature, cfg.max_tokens, cfg.device

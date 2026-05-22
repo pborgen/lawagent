@@ -61,3 +61,43 @@ profiles:
     embeddings:
       provider: openai
       model: text-embedding-3-small
+
+  bedrock:
+    description: >-
+      Amazon Bedrock for chat and embeddings. Credentials and region come
+      from the standard AWS chain (env vars, ~/.aws/credentials, IAM role).
+      Requires Bedrock model access to be enabled in your AWS account for
+      the chosen model IDs. The chat model must support tool calling.
+      Region can be overridden per profile; otherwise AWS_REGION applies.
+    chat:
+      provider: bedrock
+      # Use a Bedrock inference profile ID or model ID. Anthropic Claude on
+      # Bedrock supports tool calling via the Converse API.
+      model: anthropic.claude-3-5-sonnet-20241022-v2:0
+      temperature: 0
+      max_tokens: 4096
+      # region: us-east-1
+    embeddings:
+      provider: bedrock
+      # Other options: cohere.embed-english-v3, amazon.titan-embed-text-v1
+      model: amazon.titan-embed-text-v2:0
+      # region: us-east-1
+
+  ollama:
+    description: >-
+      Local quantized models via the Ollama daemon. No API keys.
+      Requires Ollama running locally (default http://localhost:11434) and
+      both models pulled:
+        ollama pull qwen2.5            # ~4.7GB, supports tool calling
+        ollama pull nomic-embed-text   # ~274MB embeddings
+      Override the host with the OLLAMA_HOST env var if Ollama is remote.
+    chat:
+      provider: ollama
+      # Must support tool calling for the agent's retrieve tool.
+      # Other good tags: llama3.1, mistral-nemo, qwen3.
+      model: qwen2.5
+      temperature: 0
+      max_tokens: 4096
+    embeddings:
+      provider: ollama
+      model: nomic-embed-text

@@ -34,6 +34,21 @@ def build_embeddings(cfg: EmbeddingsConfig) -> Embeddings:
 
         return OpenAIEmbeddings(model=cfg.model)
 
+    if cfg.provider == "bedrock":
+        # Amazon Bedrock embeddings (e.g. amazon.titan-embed-text-v2:0,
+        # cohere.embed-english-v3). Credentials/region come from the standard
+        # AWS chain; the YAML may override region per profile.
+        from langchain_aws import BedrockEmbeddings
+
+        return BedrockEmbeddings(model_id=cfg.model, region_name=cfg.region)
+
+    if cfg.provider == "ollama":
+        # Embeddings served by the local Ollama daemon (e.g. nomic-embed-text,
+        # mxbai-embed-large). The model must be pulled via `ollama pull`.
+        from langchain_ollama import OllamaEmbeddings
+
+        return OllamaEmbeddings(model=cfg.model)
+
     if cfg.provider == "local":
         try:
             from langchain_huggingface import HuggingFaceEmbeddings
