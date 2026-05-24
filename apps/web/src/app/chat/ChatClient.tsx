@@ -103,12 +103,14 @@ export default function ChatClient() {
       <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/80 px-4 py-3 backdrop-blur sm:px-6">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4">
           <BrandLogo href="/" showWordmark={false} />
-          <Link
-            href="/"
-            className="text-sm text-slate-300 transition hover:text-white"
-          >
-            ← Home
-          </Link>
+          <div className="flex items-center gap-4 text-sm text-slate-300">
+            <Link href="/files" className="transition hover:text-white">
+              Files
+            </Link>
+            <Link href="/" className="transition hover:text-white">
+              ← Home
+            </Link>
+          </div>
         </div>
       </header>
 

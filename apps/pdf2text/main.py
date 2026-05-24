@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -56,19 +57,37 @@ def _main() -> None:
 @app.command()
 def convert(
     crn: str = typer.Option(None, help="Case reference number. Defaults to EFILE_CRN."),
+    base_dir: Optional[Path] = typer.Option(
+        None,
+        "--base",
+        help="Case directory to convert (must contain a docs/ subdir). "
+        "Mutually exclusive with --crn; use this for non-efile sources "
+        "like data/case/s3/<id>.",
+    ),
     force: bool = typer.Option(False, help="Re-convert PDFs even if already in the manifest."),
 ) -> None:
-    """Convert every PDF under data/case/efile/<crn>/docs/ to markdown + JSON."""
-    crn = crn or get_settings().efile_crn or ""
-    if not crn:
-        console.print("[red]No CRN provided. Set EFILE_CRN or pass --crn.[/red]")
+    """Convert every PDF under <base>/docs/ to markdown + JSON."""
+    if base_dir is not None and crn:
+        console.print("[red]Pass --crn OR --base, not both.[/red]")
         raise typer.Exit(code=1)
+    if base_dir is not None:
+        base = base_dir
+    else:
+        crn = crn or get_settings().efile_crn or ""
+        if not crn:
+            console.print(
+                "[red]No CRN or --base provided. Set EFILE_CRN, pass --crn, or pass --base.[/red]"
+            )
+            raise typer.Exit(code=1)
+        base = _case_dir(crn)
 
-    base = _case_dir(crn)
     docs_dir = base / "docs"
     text_dir = base / "text"
     if not docs_dir.exists():
-        console.print(f"[red]No docs dir at {docs_dir}. Run efile pull first.[/red]")
+        console.print(
+            f"[red]No docs dir at {docs_dir}. "
+            "Run the matching fetch step first (e.g. efile pull / s3fetch pull).[/red]"
+        )
         raise typer.Exit(code=1)
     text_dir.mkdir(parents=True, exist_ok=True)
 

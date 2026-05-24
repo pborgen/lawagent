@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from agent.src.graph import ask_with_sources
+from api.files import router as files_router
 
 
 Mode = Literal["short", "memo", "annotate"]
@@ -51,9 +52,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_methods=["POST", "GET"],
+    allow_methods=["POST", "GET", "DELETE"],
     allow_headers=["*"],
 )
+
+app.include_router(files_router)
 
 
 class ChatRequest(BaseModel):
@@ -88,6 +91,7 @@ def chat(req: ChatRequest) -> ChatResponse:
             status_code=502,
             detail=f"The assistant failed to answer: {exc}",
         ) from exc
+
     return ChatResponse(
         answer=answer,
         mode=req.mode,

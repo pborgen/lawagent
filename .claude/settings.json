@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pipeline.main *)",
+      "Bash(python -m s3fetch.main *)",
+      "Bash(python -m pdf2text.main *)",
+      "Bash(python -m compileall *)",
+      "Bash(.venv/bin/python *)",
+      "Bash(.venv/bin/python3 *)",
+      "Bash(uv run python *)",
+      "Bash(uv run python3 *)",
+      "Bash(curl -sf http://127.0.0.1:8000/health)",
+      "Bash(curl -sf -o /dev/null http://127.0.0.1:3000)"
+    ]
+  }
+}

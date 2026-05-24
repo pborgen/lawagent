@@ -50,6 +50,11 @@ def fetch_public(
         "--statutes/--no-statutes",
         help="Include Connecticut statute sources.",
     ),
+    practice_book: bool = typer.Option(
+        True,
+        "--practice-book/--no-practice-book",
+        help="Include the full Connecticut Practice Book PDF (~3.7MB; ~30s to extract).",
+    ),
     guides: bool = typer.Option(
         True,
         "--guides/--no-guides",
@@ -66,6 +71,7 @@ def fetch_public(
         out_dir=out_dir,
         force=force,
         include_statutes=statutes,
+        include_practice_book=practice_book,
         include_guides=guides,
         include_forms=forms,
         include_pdfs=pdf,

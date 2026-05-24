@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     # --- Vector store (pgvector on Postgres) ---
     pg_url: Optional[str] = Field(default=None, alias="LAWAGENT_PG_URL")
 
+    # --- S3 fetcher (apps/s3fetch) ---
+    # Default s3:// URI to mirror when `s3fetch pull` is run with no args.
+    # AWS credentials and region come from the standard AWS chain.
+    s3_uri: Optional[str] = Field(default=None, alias="LAWAGENT_S3_URI")
+    # Override the directory name under data/case/s3/ when the prefix's
+    # derived slug isn't what you want.
+    s3_id: Optional[str] = Field(default=None, alias="LAWAGENT_S3_ID")
+
     # --- CT eFile scraper ---
     efile_username: Optional[str] = Field(default=None, alias="EFILE_USERNAME")
     efile_password: Optional[str] = Field(default=None, alias="EFILE_PASSWORD")

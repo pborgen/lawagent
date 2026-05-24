@@ -1286,6 +1286,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
+    { name = "boto3" },
     { name = "fastapi" },
     { name = "langchain" },
     { name = "langchain-anthropic" },
@@ -1336,6 +1337,7 @@ local = [
 requires-dist = [
     { name = "accelerate", marker = "extra == 'local'", specifier = ">=0.30" },
     { name = "beautifulsoup4", specifier = ">=4.12" },
+    { name = "boto3", specifier = ">=1.34" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "hf-transfer", marker = "extra == 'local'", specifier = ">=0.1" },
     { name = "langchain", specifier = ">=0.3" },

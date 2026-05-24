@@ -79,6 +79,9 @@ export default function Home() {
               <a className="hidden transition hover:text-white sm:inline" href="#faq">
                 FAQ
               </a>
+              <Link className="hidden transition hover:text-white sm:inline" href="/files">
+                Files
+              </Link>
               <Link
                 className="rounded-full bg-sky-400 px-3 py-1.5 font-semibold text-slate-950 transition hover:bg-sky-300"
                 href="/chat"
