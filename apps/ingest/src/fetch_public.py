@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import ssl
 import tempfile
 from dataclasses import dataclass
@@ -620,9 +621,38 @@ def _fetch_one(spec: SourceSpec) -> str:
 
     if spec.kind == _PDF_KIND:
         text = pdf_bytes_to_markdown(body)
+        if spec.metadata.get("source_type") == "practice_book":
+            text = _trim_trailing_index(text)
         return render_with_frontmatter(metadata, text, suffix=".md")
 
     raise ValueError(f"Unsupported source kind: {spec.kind}")
+
+
+_DOTTED_LEADER_RE = re.compile(r"(?m)^.{0,80}(?:\.\s){5,}")
+
+
+def _trim_trailing_index(text: str) -> str:
+    """Drop the dotted-leader index/TOC that follows the last `Sec. NN-NN.`
+    heading in a Practice Book PDF extraction. Without this, the chunker
+    treats the final rule (e.g. Sec. 86-2) as the parent of the entire
+    back-of-book index — producing tens of thousands of spurious chunks
+    and ruining retrieval.
+
+    The PB rule body is normal prose. The cross-reference index that
+    follows has lines like
+        `1 . . . . . . . . . . .  1-3`
+    which contain dotted leaders. We find the first such line after the
+    LAST real section heading and truncate there.
+    """
+    section_re = re.compile(r"(?m)^Sec\. [0-9A-Za-z\-]+\.")
+    matches = list(section_re.finditer(text))
+    if not matches:
+        return text
+    last_section_start = matches[-1].start()
+    leader_match = _DOTTED_LEADER_RE.search(text, pos=last_section_start)
+    if not leader_match:
+        return text
+    return text[: leader_match.start()].rstrip() + "\n"
 
 
 def _download(url: str) -> bytes:

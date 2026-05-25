@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import BrandLogo from "@/components/BrandLogo";
 
@@ -47,6 +47,40 @@ function formatDate(iso: string): string {
   }
 }
 
+type FolderEntry = {
+  name: string;
+  fileCount: number;
+  totalSize: number;
+};
+
+function partitionAtPath(
+  items: FileItem[],
+  path: string,
+): { folders: FolderEntry[]; files: FileItem[] } {
+  const folderMap = new Map<string, FolderEntry>();
+  const files: FileItem[] = [];
+  const normalized = path && !path.endsWith("/") ? `${path}/` : path;
+  for (const item of items) {
+    if (normalized && !item.key.startsWith(normalized)) continue;
+    const rest = item.key.slice(normalized.length);
+    if (!rest) continue;
+    const slash = rest.indexOf("/");
+    if (slash === -1) {
+      files.push(item);
+    } else {
+      const name = rest.slice(0, slash);
+      const entry = folderMap.get(name) ?? { name, fileCount: 0, totalSize: 0 };
+      entry.fileCount += 1;
+      entry.totalSize += item.size;
+      folderMap.set(name, entry);
+    }
+  }
+  const folders = Array.from(folderMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  return { folders, files };
+}
+
 export default function FilesClient() {
   const [list, setList] = useState<CaseFileList | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +88,14 @@ export default function FilesClient() {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [path, setPath] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { folders, files } = useMemo(
+    () => partitionAtPath(list?.items ?? [], path),
+    [list, path],
+  );
+  const crumbs = path ? path.split("/").filter(Boolean) : [];
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -330,53 +371,120 @@ export default function FilesClient() {
             </button>
           </div>
 
+          <nav className="flex flex-wrap items-center gap-1 text-sm text-slate-300">
+            <button
+              type="button"
+              onClick={() => setPath("")}
+              className={`rounded px-1.5 py-0.5 transition hover:bg-white/10 ${
+                path === "" ? "text-white" : "text-slate-400"
+              }`}
+            >
+              All files
+            </button>
+            {crumbs.map((segment, i) => {
+              const target = crumbs.slice(0, i + 1).join("/") + "/";
+              const isLast = i === crumbs.length - 1;
+              return (
+                <span key={target} className="flex items-center gap-1">
+                  <span className="text-slate-500">/</span>
+                  <button
+                    type="button"
+                    onClick={() => setPath(target)}
+                    className={`rounded px-1.5 py-0.5 transition hover:bg-white/10 ${
+                      isLast ? "text-white" : "text-slate-400"
+                    }`}
+                  >
+                    {segment}
+                  </button>
+                </span>
+              );
+            })}
+          </nav>
+
           {loading ? (
             <p className="text-sm text-slate-400">Loading…</p>
           ) : !list || list.items.length === 0 ? (
             <p className="rounded-2xl border border-white/10 bg-white/4 px-4 py-6 text-sm text-slate-300">
               No files yet. Upload your first document above.
             </p>
+          ) : folders.length === 0 && files.length === 0 ? (
+            <p className="rounded-2xl border border-white/10 bg-white/4 px-4 py-6 text-sm text-slate-300">
+              This folder is empty.
+            </p>
           ) : (
             <ul className="divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60">
-              {list.items.map((item) => (
-                <li
-                  key={item.key}
-                  className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-100">
-                      {item.name}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      {formatBytes(item.size)} · {formatDate(item.last_modified)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
+              {folders.map((folder) => {
+                const target = (path ? path : "") + folder.name + "/";
+                return (
+                  <li
+                    key={`d:${folder.name}`}
+                    className="flex items-center justify-between gap-3 px-4 py-3"
+                  >
                     <button
                       type="button"
-                      disabled={busyKey === item.key}
-                      onClick={() => handleDownload(item)}
-                      className="rounded-full border border-white/15 px-3 py-1 text-xs font-medium text-white transition hover:border-white/35 hover:bg-white/5 disabled:opacity-50"
+                      onClick={() => setPath(target)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
-                      Open
+                      <span aria-hidden className="text-base">📁</span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-slate-100">
+                          {folder.name}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-slate-400">
+                          {folder.fileCount}{" "}
+                          {folder.fileCount === 1 ? "file" : "files"} ·{" "}
+                          {formatBytes(folder.totalSize)}
+                        </span>
+                      </span>
                     </button>
-                    <button
-                      type="button"
-                      disabled={busyKey === item.key}
-                      onClick={() => handleDelete(item)}
-                      className="rounded-full border border-rose-400/30 px-3 py-1 text-xs font-medium text-rose-100 transition hover:border-rose-400/60 hover:bg-rose-500/10 disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
+              {files.map((item) => {
+                const basename = item.name.split("/").pop() ?? item.name;
+                return (
+                  <li
+                    key={item.key}
+                    className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span aria-hidden className="text-base">📄</span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-100">
+                          {basename}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          {formatBytes(item.size)} · {formatDate(item.last_modified)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={busyKey === item.key}
+                        onClick={() => handleDownload(item)}
+                        className="rounded-full border border-white/15 px-3 py-1 text-xs font-medium text-white transition hover:border-white/35 hover:bg-white/5 disabled:opacity-50"
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyKey === item.key}
+                        onClick={() => handleDelete(item)}
+                        className="rounded-full border border-rose-400/30 px-3 py-1 text-xs font-medium text-rose-100 transition hover:border-rose-400/60 hover:bg-rose-500/10 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
 
           {list?.bucket ? (
             <p className="text-xs text-slate-500">
-              s3://{list.bucket}/{list.prefix}
+              s3://{list.bucket}/{path}
             </p>
           ) : null}
         </section>

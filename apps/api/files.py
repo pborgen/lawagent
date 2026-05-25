@@ -24,6 +24,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -86,15 +87,6 @@ def _resolve_target() -> tuple[str, str]:
     return parsed.netloc, prefix
 
 
-def _ensure_key_in_prefix(key: str, prefix: str) -> None:
-    """Reject keys outside the configured prefix.
-
-    Stops a crafted request from touching unrelated objects in the bucket.
-    """
-    if prefix and not key.startswith(prefix):
-        raise HTTPException(status_code=400, detail="Key is outside the case prefix.")
-
-
 def _sanitize_filename(filename: str) -> str:
     """Strip path separators and leading dots from a client-supplied name."""
     name = filename.replace("\\", "/").split("/")[-1].strip()
@@ -105,13 +97,15 @@ def _sanitize_filename(filename: str) -> str:
 
 
 def _s3():
-    return boto3.client("s3")
+    return boto3.client("s3", config=Config(signature_version="s3v4"))
 
 
 @router.get("", response_model=FileListResponse)
 def list_files() -> FileListResponse:
-    """List objects under the configured case prefix.
+    """List every object in the bucket.
 
+    The configured prefix only governs where new uploads land; the listing
+    spans the whole bucket so the UI can see everything stored there.
     Folder placeholder keys (zero-byte, trailing slash) are skipped.
     """
     bucket, prefix = _resolve_target()
@@ -119,17 +113,16 @@ def list_files() -> FileListResponse:
     items: list[FileItem] = []
     try:
         paginator = s3.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for page in paginator.paginate(Bucket=bucket):
             for obj in page.get("Contents", []) or []:
                 key = obj["Key"]
                 size = int(obj.get("Size", 0))
                 if key.endswith("/") and size == 0:
                     continue
-                rel = key[len(prefix):] if prefix and key.startswith(prefix) else key
                 items.append(
                     FileItem(
                         key=key,
-                        name=rel,
+                        name=key,
                         size=size,
                         last_modified=obj["LastModified"].isoformat(),
                     )
@@ -174,9 +167,8 @@ def presign_upload(req: PresignUploadRequest) -> PresignUploadResponse:
 
 @router.get("/presign-download", response_model=PresignDownloadResponse)
 def presign_download(key: str = Query(..., min_length=1)) -> PresignDownloadResponse:
-    """Return a presigned GET URL for an object inside the case prefix."""
-    bucket, prefix = _resolve_target()
-    _ensure_key_in_prefix(key, prefix)
+    """Return a presigned GET URL for any object in the bucket."""
+    bucket, _ = _resolve_target()
     try:
         url = _s3().generate_presigned_url(
             "get_object",
@@ -193,9 +185,8 @@ def presign_download(key: str = Query(..., min_length=1)) -> PresignDownloadResp
 
 @router.delete("")
 def delete_file(key: str = Query(..., min_length=1)) -> dict[str, str]:
-    """Delete one object from S3, scoped to the case prefix."""
-    bucket, prefix = _resolve_target()
-    _ensure_key_in_prefix(key, prefix)
+    """Delete one object from the bucket."""
+    bucket, _ = _resolve_target()
     try:
         _s3().delete_object(Bucket=bucket, Key=key)
     except ClientError as exc:

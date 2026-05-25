@@ -33,6 +33,7 @@ dependencies = [
     "pymupdf>=1.24",
     "pytesseract>=0.3.10",
     "pillow>=10",
+    "apscheduler>=3.10",
 ]
 
 # Discover every top-level package under apps/ and packages/. With this

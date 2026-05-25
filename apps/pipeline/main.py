@@ -215,19 +215,19 @@ def run(
     )
 
     # ── Stage 1 — fetch ────────────────────────────────────────────────
-    # Skip only when docs/ already has content. For efile we look for PDFs
-    # specifically (that's all eServices serves). For s3 we accept any file
-    # since the bucket can contain anything.
+    # efile pulls scrape a live website per CRN, so we skip stage 1 once
+    # docs/ is populated unless --refresh. s3 pulls are ETag-idempotent
+    # at the object level (one list_objects_v2 call when nothing changed),
+    # so we always let s3fetch run — that's how new uploads get picked up.
     if source == Source.efile:
         have_content = docs_dir.is_dir() and any(docs_dir.rglob("*.pdf"))
-    else:
-        have_content = docs_dir.is_dir() and any(p.is_file() for p in docs_dir.rglob("*"))
-
-    if have_content and not refresh:
-        console.print(
-            f"[yellow]· Stage 1 — fetch — {docs_dir} already populated, "
-            f"skipping (use --refresh to re-pull)[/yellow]"
-        )
+        if have_content and not refresh:
+            console.print(
+                f"[yellow]· Stage 1 — fetch — {docs_dir} already populated, "
+                f"skipping (use --refresh to re-pull)[/yellow]"
+            )
+        else:
+            _run_stage(f"Stage 1 — fetch ({source.value} pull)", fetch_argv)
     else:
         _run_stage(f"Stage 1 — fetch ({source.value} pull)", fetch_argv)
 

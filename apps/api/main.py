@@ -12,14 +12,24 @@ Run it:
 """
 from __future__ import annotations
 
-from typing import Literal
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Literal
+from urllib.parse import urlparse
 
+import boto3
+from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from agent.src.graph import ask_with_sources
 from api.files import router as files_router
+from settings import get_settings
+
+
+logger = logging.getLogger(__name__)
 
 
 Mode = Literal["short", "memo", "annotate"]
@@ -37,6 +47,47 @@ class Source(BaseModel):
     source_type: str = ""
 
 
+def _verify_s3_connection() -> None:
+    """Confirm the configured S3 bucket is reachable, or raise.
+
+    Runs once at startup so misconfigured credentials, a wrong bucket
+    name, or a bad region surface immediately instead of waiting for the
+    first /files request to fail.
+    """
+    uri = get_settings().s3_uri
+    if not uri:
+        raise RuntimeError(
+            "LAWAGENT_S3_URI is not set. The API needs an s3://bucket/prefix/ "
+            "to manage case files."
+        )
+    parsed = urlparse(uri)
+    if parsed.scheme != "s3" or not parsed.netloc:
+        raise RuntimeError(f"LAWAGENT_S3_URI is not a valid s3:// URI: {uri!r}")
+    bucket = parsed.netloc
+    client = boto3.client("s3", config=Config(signature_version="s3v4"))
+    try:
+        client.head_bucket(Bucket=bucket)
+    except NoCredentialsError as exc:
+        raise RuntimeError(
+            "No AWS credentials found. Configure with `aws configure`, env "
+            "vars, or an instance profile."
+        ) from exc
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "Unknown")
+        raise RuntimeError(
+            f"Could not reach s3://{bucket}/ ({code}): {exc}"
+        ) from exc
+    except BotoCoreError as exc:
+        raise RuntimeError(f"S3 connection failed: {exc}") from exc
+    logger.info("S3 connection verified: s3://%s/", bucket)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    _verify_s3_connection()
+    yield
+
+
 app = FastAPI(
     title="lawagent API",
     description=(
@@ -44,6 +95,7 @@ app = FastAPI(
         "citation-backed answers. Not legal advice."
     ),
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # The Next.js app proxies through its own server route (`/api/chat`), so
