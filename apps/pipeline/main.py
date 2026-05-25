@@ -304,6 +304,18 @@ def run(
                 "ingested_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             }, indent=2), encoding="utf-8")
 
+    # ── Stage 4 — prune ────────────────────────────────────────────────
+    # Drop pgvector chunks whose source file no longer exists on disk. The
+    # upstream stages already removed deleted docs/ and text/ files; this
+    # step is what propagates a delete all the way into the vector store.
+    # Cheap when nothing changed (one SELECT per case_dir).
+    if not dry_run:
+        prune_argv = [
+            py, "-m", "ingest.main", "prune", str(case_dir),
+            "--collection", resolved_collection,
+        ]
+        _run_stage("Stage 4 — prune (drop stale chunks)", prune_argv)
+
     # ── Done ───────────────────────────────────────────────────────────
     console.rule("[bold green]Pipeline complete[/bold green]")
     if dry_run:

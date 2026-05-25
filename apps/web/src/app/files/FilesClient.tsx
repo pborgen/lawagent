@@ -149,6 +149,7 @@ export default function FilesClient() {
         body: JSON.stringify({
           filename: file.name,
           content_type: file.type || "application/octet-stream",
+          prefix: path,
         }),
       });
       const presign = await presignRes.json();
@@ -298,7 +299,11 @@ export default function FilesClient() {
             </button>
           </p>
           <p className="mt-2 text-xs text-slate-400">
-            PDFs, Word docs, images, or text — any document for your case.
+            Uploads land in{" "}
+            <span className="font-mono text-slate-300">
+              {path ? path : "the bucket root"}
+            </span>
+            . Navigate into a folder below to upload there.
           </p>
           <input
             ref={inputRef}

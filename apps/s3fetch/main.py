@@ -89,6 +89,7 @@ def pull_cmd(
         f"[green]✓[/green] Done. "
         f"new={counts.get('new_downloads', 0)}, "
         f"skipped={counts.get('skipped_already_present', 0)}, "
+        f"deleted={counts.get('deleted', 0)}, "
         f"total={counts.get('total_objects', 0)}"
     )
     console.print(f"Manifest: {target.case_dir / 'manifest.json'}")

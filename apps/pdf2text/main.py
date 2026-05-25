@@ -130,6 +130,31 @@ def convert(
         })
         new_count += 1
 
+    # Orphan reconcile: any entry from the prior manifest whose source PDF
+    # is no longer on disk gets its text outputs removed. This is how a
+    # delete in S3 (or a local docs/ removal) propagates into text/.
+    current_rel_pdfs = {str(p.relative_to(base)) for p in pdfs}
+    deleted_count = 0
+    for entry in prev_manifest.get("documents", []):
+        src_pdf = entry.get("source_pdf")
+        if not src_pdf or src_pdf in current_rel_pdfs:
+            continue
+        removed_any = False
+        for key in ("markdown_path", "json_path"):
+            rel = entry.get(key)
+            if not rel:
+                continue
+            p = base / rel
+            if p.exists():
+                try:
+                    p.unlink()
+                    removed_any = True
+                except OSError as exc:
+                    console.print(f"[yellow]could not remove {p}: {exc}[/yellow]")
+        if removed_any:
+            console.print(f"  ✗ removed text outputs for missing {src_pdf}")
+            deleted_count += 1
+
     manifest = {
         "crn": crn,
         "last_run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -137,6 +162,7 @@ def convert(
         "counts": {
             "newly_converted": new_count,
             "skipped_already_present": skipped_count,
+            "deleted": deleted_count,
             "total_pdfs": len(pdfs),
         },
     }
@@ -144,7 +170,8 @@ def convert(
 
     console.print(
         f"[green]✓[/green] Done. "
-        f"converted={new_count}, skipped={skipped_count}, total={len(pdfs)}"
+        f"converted={new_count}, skipped={skipped_count}, "
+        f"deleted={deleted_count}, total={len(pdfs)}"
     )
     console.print(f"Manifest: {manifest_path}")
     console.print(

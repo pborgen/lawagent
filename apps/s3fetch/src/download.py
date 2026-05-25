@@ -157,6 +157,10 @@ def _local_relpath(key: str, prefix: str) -> Path:
 def pull(target: S3Target) -> dict:
     """Mirror everything under `target.prefix` into `data/case/s3/<id>/docs/`.
 
+    Mirrors deletes too: a key present in the prior manifest but absent
+    from the current S3 listing is removed locally. Downstream stages
+    (pdf2text, ingest) handle their own reconcile passes.
+
     Returns the freshly written manifest dict.
     """
     base = target.case_dir
@@ -171,11 +175,13 @@ def pull(target: S3Target) -> dict:
     new_objects: list[dict] = []
     new_count = 0
     skipped_count = 0
+    current_keys: set[str] = set()
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     try:
         for obj in _iter_objects(s3, target.bucket, target.prefix):
             key = obj["Key"]
+            current_keys.add(key)
             etag = obj["ETag"]
             rel = _local_relpath(key, target.prefix)
             local = base / rel
@@ -204,6 +210,8 @@ def pull(target: S3Target) -> dict:
         msg = exc.response.get("Error", {}).get("Message", str(exc))
         raise RuntimeError(f"S3 {code}: {msg}") from exc
 
+    deleted_count = _remove_deleted(base, docs_dir, prev_by_key, current_keys)
+
     manifest = {
         "id": target.id,
         "bucket": target.bucket,
@@ -212,9 +220,48 @@ def pull(target: S3Target) -> dict:
         "counts": {
             "new_downloads": new_count,
             "skipped_already_present": skipped_count,
+            "deleted": deleted_count,
             "total_objects": len(new_objects),
         },
         "objects": new_objects,
     }
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return manifest
+
+
+def _remove_deleted(
+    base: Path,
+    docs_dir: Path,
+    prev_by_key: dict[str, dict],
+    current_keys: set[str],
+) -> int:
+    """For every prior key missing from S3, drop the local docs/ file.
+
+    Empty parent directories below `docs/` are pruned as a courtesy. Errors
+    on individual files are logged but don't abort the sync — the next tick
+    will retry. Returns the number of objects whose deletion was applied.
+    """
+    deleted = 0
+    for key, prior in prev_by_key.items():
+        if key in current_keys:
+            continue
+        rel = prior.get("downloaded_path")
+        if not rel:
+            continue
+        local = base / rel
+        if local.exists():
+            try:
+                local.unlink()
+            except OSError as exc:
+                console.print(f"[yellow]could not remove {local}: {exc}[/yellow]")
+                continue
+            console.print(f"  ✗ removed local {rel}")
+        parent = local.parent
+        while parent != docs_dir and parent.is_dir():
+            try:
+                parent.rmdir()
+            except OSError:
+                break
+            parent = parent.parent
+        deleted += 1
+    return deleted

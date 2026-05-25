@@ -12,8 +12,10 @@ active profile's collection when `collection` is not passed.
 
 from llm import active_collection
 from store.pgvector import (
+    delete_chunks_by_source_paths,
     delete_collection,
     get_vectorstore,
+    list_source_paths_under,
     resolve_collection,
     resolve_connection,
     similarity_search,
@@ -22,8 +24,10 @@ from store.pgvector import (
 
 __all__ = [
     "active_collection",
+    "delete_chunks_by_source_paths",
     "delete_collection",
     "get_vectorstore",
+    "list_source_paths_under",
     "resolve_collection",
     "resolve_connection",
     "similarity_search",

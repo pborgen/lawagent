@@ -20,13 +20,18 @@ from rich.console import Console
 
 from ingestion import discover_files
 from ingestion.chunking import chunk_file
-from store import active_collection, write_chunks
+from store import (
+    active_collection,
+    delete_chunks_by_source_paths,
+    list_source_paths_under,
+    write_chunks,
+)
 from ingest.src.fetch_public import fetch_public_starter
 
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 console = Console()
-_KNOWN_COMMANDS = {"fetch-public", "ingest"}
+_KNOWN_COMMANDS = {"fetch-public", "ingest", "prune"}
 _ROOT_FLAGS = {"--help", "-h", "--show-completion", "--install-completion"}
 
 
@@ -144,6 +149,60 @@ def ingest(
     console.print(
         f"[green]✓[/green] Ingested {len(chunks)} chunks from {len(files)} files "
         f"into [bold]{target}[/bold]"
+    )
+
+
+@app.command()
+def prune(
+    base: Path = typer.Argument(
+        ..., exists=True, file_okay=False, dir_okay=True,
+        help="Case directory whose chunks to reconcile (e.g. data/case/s3/<id>).",
+    ),
+    collection: Optional[str] = typer.Option(
+        None,
+        help="pgvector collection name. Defaults to the active profile's collection.",
+    ),
+    connection: Optional[str] = typer.Option(
+        None,
+        help="Override LAWAGENT_PG_URL for this run.",
+    ),
+    dry_run: bool = typer.Option(
+        False, help="Show what would be deleted without writing to the DB.",
+    ),
+) -> None:
+    """Delete pgvector chunks under `base` whose source file is gone from disk.
+
+    Pairs with the deletion handling in s3fetch / pdf2text: those stages
+    remove docs/ and text/ files; this step removes the matching chunks.
+    """
+    target = collection or active_collection()
+    # Match how ingest writes source_path (absolute, no trailing slash on dirs).
+    prefix = str(base.resolve())
+    paths = list_source_paths_under(
+        prefix + "/", collection=target, connection=connection,
+    )
+    stale = [p for p in paths if not Path(p).exists()]
+    if not stale:
+        console.print(
+            f"[green]✓[/green] No stale chunks under [bold]{base}[/bold] "
+            f"in '{target}'."
+        )
+        return
+
+    if dry_run:
+        console.print(
+            f"Would delete chunks for {len(stale)} missing files:"
+        )
+        for p in stale:
+            console.print(f"  - {p}")
+        return
+
+    removed = delete_chunks_by_source_paths(
+        stale, collection=target, connection=connection,
+    )
+    console.print(
+        f"[green]✓[/green] Pruned {removed} chunks from {len(stale)} missing "
+        f"files under [bold]{base}[/bold]."
     )
 
 

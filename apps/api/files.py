@@ -54,6 +54,9 @@ class FileListResponse(BaseModel):
 class PresignUploadRequest(BaseModel):
     filename: str = Field(..., min_length=1, max_length=512)
     content_type: str = Field(default="application/octet-stream", max_length=200)
+    # Destination folder inside the bucket (e.g. "defendant/Retirement/").
+    # Empty/omitted = use the prefix from LAWAGENT_S3_URI.
+    prefix: Optional[str] = Field(default=None, max_length=1024)
 
 
 class PresignUploadResponse(BaseModel):
@@ -96,6 +99,26 @@ def _sanitize_filename(filename: str) -> str:
     return name
 
 
+def _sanitize_prefix(prefix: str) -> str:
+    """Normalize a client-supplied destination folder.
+
+    - Strips leading slashes (S3 keys never start with /).
+    - Rejects `..` segments so a crafted prefix can't escape the bucket
+      semantically (S3 doesn't actually have directories, but allowing
+      `..` would let the UI show misleading paths).
+    - Guarantees a trailing slash for non-empty prefixes.
+    """
+    cleaned = prefix.replace("\\", "/").lstrip("/").strip()
+    if not cleaned:
+        return ""
+    parts = [seg for seg in cleaned.split("/") if seg not in ("", ".")]
+    if any(seg == ".." for seg in parts):
+        raise HTTPException(
+            status_code=400, detail="Prefix may not contain '..' segments."
+        )
+    return "/".join(parts) + "/"
+
+
 def _s3():
     return boto3.client("s3", config=Config(signature_version="s3v4"))
 
@@ -136,10 +159,16 @@ def list_files() -> FileListResponse:
 
 @router.post("/presign-upload", response_model=PresignUploadResponse)
 def presign_upload(req: PresignUploadRequest) -> PresignUploadResponse:
-    """Return a presigned PUT URL the browser uses to upload directly to S3."""
-    bucket, prefix = _resolve_target()
+    """Return a presigned PUT URL the browser uses to upload directly to S3.
+
+    `req.prefix` (if provided) chooses the destination folder — e.g. the
+    folder the user is currently viewing in the UI. Falls back to the
+    LAWAGENT_S3_URI prefix when omitted.
+    """
+    bucket, default_prefix = _resolve_target()
     name = _sanitize_filename(req.filename)
-    key = f"{prefix}{name}" if prefix else name
+    dest = _sanitize_prefix(req.prefix) if req.prefix is not None else default_prefix
+    key = f"{dest}{name}" if dest else name
 
     try:
         url = _s3().generate_presigned_url(

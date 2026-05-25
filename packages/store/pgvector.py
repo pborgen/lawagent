@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from langchain_core.documents import Document
 from langchain_postgres import PGVector
+from sqlalchemy import create_engine, text
 
 from corpus import Chunk
 from llm import active_collection, get_active_profile, get_embeddings
@@ -88,3 +89,58 @@ def delete_collection(
 ) -> None:
     """Drop a collection and all of its embeddings."""
     get_vectorstore(collection=collection, connection=connection).delete_collection()
+
+
+def list_source_paths_under(
+    prefix: str,
+    *,
+    collection: Optional[str] = None,
+    connection: Optional[str] = None,
+) -> list[str]:
+    """Distinct `source_path` values in `collection` that start with `prefix`.
+
+    Used by the prune step to find which on-disk files this collection
+    currently has chunks for — the caller then drops any whose file is gone.
+    """
+    name = resolve_collection(collection)
+    sql = text(
+        """
+        SELECT DISTINCT e.cmetadata->>'source_path' AS source_path
+        FROM langchain_pg_embedding e
+        JOIN langchain_pg_collection c ON e.collection_id = c.uuid
+        WHERE c.name = :name
+          AND e.cmetadata->>'source_path' LIKE :pat
+        """
+    )
+    engine = create_engine(resolve_connection(connection))
+    with engine.connect() as conn:
+        rows = conn.execute(sql, {"name": name, "pat": f"{prefix}%"}).all()
+    return [r[0] for r in rows if r[0]]
+
+
+def delete_chunks_by_source_paths(
+    paths: list[str],
+    *,
+    collection: Optional[str] = None,
+    connection: Optional[str] = None,
+) -> int:
+    """Delete chunks in `collection` whose source_path is in `paths`.
+
+    Returns the number of rows removed. No-op (returns 0) when `paths` is empty.
+    """
+    if not paths:
+        return 0
+    name = resolve_collection(collection)
+    sql = text(
+        """
+        DELETE FROM langchain_pg_embedding
+        WHERE collection_id = (
+            SELECT uuid FROM langchain_pg_collection WHERE name = :name
+        )
+          AND cmetadata->>'source_path' = ANY(CAST(:paths AS TEXT[]))
+        """
+    )
+    engine = create_engine(resolve_connection(connection))
+    with engine.begin() as conn:
+        result = conn.execute(sql, {"name": name, "paths": paths})
+        return result.rowcount or 0
