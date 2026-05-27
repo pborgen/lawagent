@@ -17,5 +17,33 @@ services:
       timeout: 3s
       retries: 10
 
+  # Pre-flight check that the container image you'll deploy to AWS works.
+  # Reads .env from the repo root for API keys, S3 URI, etc. The DB and
+  # Bedrock-region env vars are overridden here so the container talks
+  # to the compose-network db (not localhost) and reads AWS creds from
+  # your laptop's .env / ~/.aws.
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: lawagent-api
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      LAWAGENT_PG_URL: postgresql+psycopg://lawagent:lawagent@db:5432/lawagent
+    volumes:
+      # Mount laptop AWS creds read-only so boto3's default chain finds
+      # them inside the container. In Fargate this will be replaced by a
+      # task IAM role and this mount is removed.
+      - ${HOME}/.aws:/app/.aws:ro
+    # The mount lands at /app/.aws (the app user's home) so the default
+    # credential chain (~/.aws/credentials) picks it up without any
+    # extra env vars.
+    ports:
+      - "8000:8000"
+
 volumes:
   lawagent-db-data:

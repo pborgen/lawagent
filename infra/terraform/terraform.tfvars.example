@@ -1,0 +1,26 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values.
+
+aws_region   = "us-east-1"
+project_name = "lawagent-api"
+
+github_owner = "pborgen"
+github_repo  = "lawagent"
+
+# If you already have a GitHub OIDC provider in this AWS account
+# (only one is allowed), paste its ARN here. Otherwise leave empty
+# and Terraform will create it.
+github_oidc_provider_arn = ""
+
+# S3 bucket holding case docs (granted to the App Runner instance role).
+s3_bucket_name = "your-lawagent-bucket"
+
+# Runtime env vars baked into the App Runner service.
+lawagent_profile = "bedrock"
+lawagent_s3_uri  = "s3://your-lawagent-bucket/case/"
+lawagent_pg_url  = "postgresql+psycopg://USER:PASS@your-rds.example.us-east-1.rds.amazonaws.com:5432/lawagent"
+
+# Image tag for the very first apply (App Runner needs *something* to pull).
+# After CI starts pushing, leave this alone — the deploy workflow rolls
+# out specific SHAs via apprunner:StartDeployment, and Terraform ignores
+# image_identifier drift.
+image_tag = "latest"

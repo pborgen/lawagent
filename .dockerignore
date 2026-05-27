@@ -1,0 +1,50 @@
+# Defense-in-depth: even though most of these are .gitignored, anyone
+# running `docker build` locally would otherwise ship them to the daemon.
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Sensitive case data — must never be baked into an image
+data/case/**
+data/raw/**
+data/debug/**
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Frontend — not part of the API image
+apps/web/node_modules/
+apps/web/.next/
+apps/web/out/
+node_modules/
+
+# Local dev infra not needed in the image
+docker-compose.yml
+docker/
+infra/
+
+# VCS / editors
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+.DS_Store
+
+# Docs
+README.md
+docs/
+**/*.md

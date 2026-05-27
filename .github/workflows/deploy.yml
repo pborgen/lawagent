@@ -1,0 +1,65 @@
+name: Deploy
+
+# Builds the API image, pushes to ECR, and tells App Runner to roll out
+# the new image. Auth is OIDC — no static AWS keys in repo secrets.
+#
+# Required repo variables (Settings → Secrets and variables → Actions → Variables):
+#   AWS_REGION           e.g. us-east-1
+#   AWS_ACCOUNT_ID       12-digit account number
+#   ECR_REPOSITORY       e.g. lawagent-api
+#   APP_RUNNER_SERVICE_ARN  full ARN of the App Runner service
+#
+# Required repo secret:
+#   AWS_DEPLOY_ROLE_ARN  IAM role ARN the workflow assumes via OIDC
+#                        (see infra/aws/README.md for the trust policy)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+
+jobs:
+  build-and-deploy:
+    name: Build, push, deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # App Runner is set to "manual" deploys so each rollout is explicit
+      # and tied to a specific commit, not whatever's tagged :latest.
+      - name: Trigger App Runner deployment
+        run: |
+          aws apprunner start-deployment \
+            --service-arn "${{ vars.APP_RUNNER_SERVICE_ARN }}" \
+            --query 'OperationId' --output text

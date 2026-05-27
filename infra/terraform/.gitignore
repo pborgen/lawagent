@@ -1,0 +1,16 @@
+# Local state + workspace
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+
+# Real values (use terraform.tfvars.example as the template)
+terraform.tfvars
+*.auto.tfvars
+*.tfvars.json
+
+# Plan output
+*.tfplan
