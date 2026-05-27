@@ -32,6 +32,22 @@ from efile.src.throttle import polite_wait
 
 
 CASE_HISTORY_URL = "https://efile.eservices.jud.ct.gov/CaseDetail/AttyCaseHistory.aspx"
+LOAD_DOCKET_URL = "https://efile.eservices.jud.ct.gov/LoadDocket.aspx"
+CASE_DETAIL_URL = "https://efile.eservices.jud.ct.gov/CaseDetail/AttyCaseDetail.aspx"
+
+
+@dataclass
+class DocumentAttachment:
+    """A PDF discovered on the DocumentInquiry landing page beyond the main filing.
+
+    CT eServices renders some filings as an HTML landing page with the main
+    document plus N attached exhibits/affidavits, instead of returning the PDF
+    directly. Those extras land here.
+    """
+    label: str
+    href: str
+    downloaded_path: Optional[str] = None
+    sha256: Optional[str] = None
 
 
 @dataclass
@@ -41,6 +57,7 @@ class DocumentLink:
     docket_entry_id: Optional[str] = None
     downloaded_path: Optional[str] = None  # populated post-download (relative to case dir)
     sha256: Optional[str] = None           # populated post-download
+    attachments: list[DocumentAttachment] = field(default_factory=list)
 
 
 @dataclass
@@ -73,29 +90,85 @@ class CaseDetail:
     docket_entries: list[DocketEntry] = field(default_factory=list)
 
 
-def fetch_case_detail(page: Page, crn: str) -> CaseDetail:
-    """Prime the case session via AttyCaseHistory, then parse the resulting detail page.
+def fetch_case_detail(
+    page: Page, crn: str, docket_no: Optional[str] = None
+) -> CaseDetail:
+    """Prime the session via LoadDocket, then fetch AttyCaseDetail.
 
-    AttyCaseDetail.aspx?CRN=... returns empty fields when hit cold; clicking
-    the docket-no link in case history routes through LoadDocket.aspx (which
-    sets server-side state) and lands on AttyCaseDetail with real data.
+    AttyCaseDetail.aspx?CRN=... returns empty fields when hit cold; the docket
+    link click on the case-list page is just a wrapper for LoadDocket.aspx,
+    which sets the per-case session state needed for AttyCaseDetail to render.
+    We skip the list-page hop (AttyCaseHistory is attorney-only and empty for
+    self-represented parties) and hit LoadDocket directly with the docket no.
     """
-    page.goto(CASE_HISTORY_URL, wait_until="networkidle")
-    polite_wait("after case history load")
-
-    docket_link = page.locator("a[id*='hlnkDocketNo'][href*='LoadDocket']").first
-    if docket_link.count() == 0:
+    if not docket_no:
         raise RuntimeError(
-            "No case docket link found on AttyCaseHistory.aspx. Are you logged in "
-            "as the right user, and does this account have access to a case?"
+            "fetch_case_detail needs docket_no to prime the LoadDocket session. "
+            "Pass it explicitly, set EFILE_DOCKET_NO, or run a pull once with "
+            "a known docket no so it's cached in manifest.json."
         )
 
-    docket_link.click()
-    page.wait_for_load_state("networkidle")
+    page.goto(
+        f"{LOAD_DOCKET_URL}?DocketNo={docket_no}", wait_until="networkidle"
+    )
+    polite_wait("after LoadDocket prime")
+    _ensure_not_login_page(page, "LoadDocket.aspx")
+    load_docket_html = page.content()
+    load_docket_url = page.url
+
+    page.goto(f"{CASE_DETAIL_URL}?CRN={crn}", wait_until="networkidle")
     polite_wait("after case detail load")
+    _ensure_not_login_page(page, "AttyCaseDetail.aspx")
 
     html = page.content()
-    return parse_case_detail(crn, html, base_url=page.url)
+    detail = parse_case_detail(crn, html, base_url=page.url)
+    if not detail.docket_entries and not detail.parties and not detail.case_caption:
+        debug_path = _dump_debug(
+            page, html, label=f"empty_case_detail_{crn}",
+            extras={"load_docket.html": load_docket_html, "load_docket_url.txt": load_docket_url},
+        )
+        raise RuntimeError(
+            f"AttyCaseDetail returned an empty page for CRN={crn} "
+            f"(docket_no={docket_no}). Snapshot written to {debug_path}. "
+            "The session may lack access to this case via "
+            "LoadDocket/AttyCaseDetail (attorney-flow pages — SRPs may need "
+            "a different entry point)."
+        )
+    return detail
+
+
+def _dump_debug(
+    page: Page, html: str, *, label: str, extras: Optional[dict] = None
+) -> str:
+    """Write the current page URL+HTML under data/debug/ for inspection."""
+    from datetime import datetime
+    from pathlib import Path
+
+    out = Path("data/debug") / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{label}"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "url.txt").write_text(page.url or "", encoding="utf-8")
+    (out / "page.html").write_text(html, encoding="utf-8")
+    for name, content in (extras or {}).items():
+        (out / name).write_text(content, encoding="utf-8")
+    return str(out)
+
+
+def _ensure_not_login_page(page: Page, where: str) -> None:
+    """Bail out if a `goto` silently redirected us to the eServices login page.
+
+    Storage-state cookies can be stale or scoped wrong, and ASP.NET will
+    happily 200-redirect to Login.aspx; `wait_until=networkidle` does not
+    notice. Catch it here so we don't overwrite a good manifest with an
+    empty parse of the login page.
+    """
+    url = (page.url or "").lower()
+    title = (page.title() or "").lower()
+    if "login.aspx" in url or "e-services login" in title:
+        raise RuntimeError(
+            f"Session bounced to the login page when loading {where} "
+            f"(url={page.url!r}). Re-run with --force-login to refresh "
+            "the cached storage state."
+        )
 
 
 # ─── ASP.NET id prefixes on the case detail page ─────────────────────

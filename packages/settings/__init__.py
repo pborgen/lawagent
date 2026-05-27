@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     efile_username: Optional[str] = Field(default=None, alias="EFILE_USERNAME")
     efile_password: Optional[str] = Field(default=None, alias="EFILE_PASSWORD")
     efile_crn: Optional[str] = Field(default=None, alias="EFILE_CRN")
+    efile_docket_no: Optional[str] = Field(default=None, alias="EFILE_DOCKET_NO")
     efile_storage_state: str = Field(
         default="./data/case/efile/.storage_state.json",
         alias="EFILE_STORAGE_STATE",
