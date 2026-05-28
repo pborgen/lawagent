@@ -93,6 +93,19 @@ class Settings(BaseSettings):
         default=1.0, alias="EFILE_DOWNLOAD_DELAY_SECONDS"
     )
 
+    # --- Auth (Cognito + Google federation) -------------------------------
+    # The FastAPI backend verifies every request's bearer token against the
+    # Cognito user pool's JWKS and rejects any email not in
+    # cognito_allowed_emails. Setting auth_disabled bypasses verification
+    # entirely — dev only, never in App Runner.
+    cognito_region: Optional[str] = Field(default=None, alias="COGNITO_REGION")
+    cognito_user_pool_id: Optional[str] = Field(
+        default=None, alias="COGNITO_USER_POOL_ID"
+    )
+    cognito_client_id: Optional[str] = Field(default=None, alias="COGNITO_CLIENT_ID")
+    cognito_allowed_emails: str = Field(default="", alias="COGNITO_ALLOWED_EMAILS")
+    auth_disabled: bool = Field(default=False, alias="LAWAGENT_AUTH_DISABLED")
+
     @model_validator(mode="before")
     @classmethod
     def _strip_inline_comments(cls, data: Any) -> Any:
@@ -124,6 +137,29 @@ class Settings(BaseSettings):
                 "postgresql+psycopg://lawagent:lawagent@localhost:5432/lawagent"
             )
         return self.pg_url
+
+    def allowed_email_set(self) -> set[str]:
+        """Normalize cognito_allowed_emails into a lowercased set."""
+        return {
+            e.strip().lower()
+            for e in self.cognito_allowed_emails.split(",")
+            if e.strip()
+        }
+
+    def require_cognito(self) -> tuple[str, str, str]:
+        """Return (region, user_pool_id, client_id) or raise if unset.
+
+        Called by the FastAPI auth dependency when auth is enabled, so
+        misconfig surfaces as a clear startup error instead of a 500
+        on every request.
+        """
+        if not (self.cognito_region and self.cognito_user_pool_id and self.cognito_client_id):
+            raise RuntimeError(
+                "Cognito is not configured. Set COGNITO_REGION, "
+                "COGNITO_USER_POOL_ID, and COGNITO_CLIENT_ID — or set "
+                "LAWAGENT_AUTH_DISABLED=true for local dev."
+            )
+        return self.cognito_region, self.cognito_user_pool_id, self.cognito_client_id
 
     def require_efile_credentials(self) -> tuple[str, str]:
         if not self.efile_username or not self.efile_password:

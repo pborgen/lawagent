@@ -25,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from agent.src.graph import ask_with_sources
+from api.auth import CurrentUser, log_auth_state
 from api.files import router as files_router
 from settings import get_settings
 
@@ -85,6 +86,7 @@ def _verify_s3_connection() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     _verify_s3_connection()
+    log_auth_state(get_settings())
     yield
 
 
@@ -108,6 +110,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Every /files/* route requires a verified Cognito user. /health is
+# intentionally open so App Runner's health check can hit it without a token.
 app.include_router(files_router)
 
 
@@ -129,7 +133,7 @@ def health() -> dict[str, str]:
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+def chat(req: ChatRequest, _user: CurrentUser) -> ChatResponse:
     """Answer one question with the grounded CT-divorce agent.
 
     Defined as a sync `def` on purpose: the agent call blocks on the LLM,

@@ -12,5 +12,6 @@ terraform.tfvars
 *.auto.tfvars
 *.tfvars.json
 
-# Plan output
+# Plan output (covers both `terraform plan -out=foo.tfplan` and bare `-out=tfplan`)
 *.tfplan
+tfplan

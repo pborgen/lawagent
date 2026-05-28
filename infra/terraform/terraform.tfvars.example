@@ -24,3 +24,24 @@ lawagent_pg_url  = "postgresql+psycopg://USER:PASS@your-rds.example.us-east-1.rd
 # out specific SHAs via apprunner:StartDeployment, and Terraform ignores
 # image_identifier drift.
 image_tag = "latest"
+
+# --- Cognito (Google federation) -------------------------------------
+# 1. In Google Cloud Console, create an OAuth 2.0 Web client.
+# 2. `terraform apply` once with placeholder google_* values, grab the
+#    `cognito_google_redirect_uri` output, paste it into Google as an
+#    authorized redirect URI, then `apply` again with the real
+#    google_client_id / google_client_secret.
+cognito_domain_prefix = "lawagent-divorse"           # must be globally unique
+google_client_id      = "REPLACE_ME.apps.googleusercontent.com"
+google_client_secret  = "REPLACE_ME"
+
+# Add prod origin(s) here once the Next.js app is deployed.
+cognito_callback_urls = [
+  "http://localhost:3000/auth/callback",
+]
+cognito_logout_urls = [
+  "http://localhost:3000",
+]
+
+# Email allowlist enforced by the FastAPI backend even after Cognito auth.
+cognito_allowed_emails = "pborgennc@gmail.com"

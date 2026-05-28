@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { buildBackendHeaders } from "@/lib/auth/proxy-headers";
+
 const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://127.0.0.1:8000";
 
 export async function POST(request: NextRequest) {
@@ -10,10 +12,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const headers = await buildBackendHeaders({ "Content-Type": "application/json" });
+  if (!headers) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   try {
     const res = await fetch(`${AGENT_API_URL}/files/presign-upload`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
     });
     const text = await res.text();

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
+import UserMenu from "@/components/UserMenu";
 
 const proofPoints = [
   {
@@ -65,7 +66,7 @@ const faqItems = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#1e293b_0%,#0f172a_38%,#020617_100%)] text-slate-50">
       <div className="mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 pt-4 sm:px-6 lg:px-8">
@@ -88,6 +89,7 @@ export default function Home() {
               >
                 Open assistant
               </Link>
+              <UserMenu />
             </nav>
           </div>
         </header>

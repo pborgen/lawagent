@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { buildBackendHeaders } from "@/lib/auth/proxy-headers";
+
 /**
  * Server-side proxy to the Python agent API (`apps/api`).
  *
  * The browser never talks to the Python service directly — it POSTs
- * here, and this route forwards to FastAPI. That keeps the agent URL
- * server-side and sidesteps CORS. Set AGENT_API_URL to point at a
- * non-local deployment.
+ * here, and this route forwards to FastAPI with the user's verified
+ * Cognito ID token as a Bearer credential. FastAPI re-verifies the
+ * token against the Cognito JWKS on every call.
  */
 const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://127.0.0.1:8000";
 
@@ -38,10 +40,15 @@ export async function POST(request: NextRequest) {
     ? (body.mode as Mode)
     : "short";
 
+  const headers = await buildBackendHeaders({ "Content-Type": "application/json" });
+  if (!headers) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   try {
     const res = await fetch(`${AGENT_API_URL}/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ question, mode }),
     });
 

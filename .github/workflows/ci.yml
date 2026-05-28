@@ -36,6 +36,34 @@ jobs:
       - name: Run pytest
         run: uv run pytest -q
 
+  web:
+    name: Web (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - run: npm ci
+
+      - run: npx tsc --noEmit
+
+      # `next build` reads env at build time; supply dummy auth values
+      # so the build doesn't fail just because real Cognito credentials
+      # aren't in CI. AUTH_DISABLED=true keeps the validator happy.
+      - name: Build
+        env:
+          AUTH_DISABLED: "true"
+          SESSION_SECRET: ci-only-placeholder-secret-not-used-at-runtime
+        run: npx next build
+
   docker-build:
     name: Docker build (smoke)
     runs-on: ubuntu-latest

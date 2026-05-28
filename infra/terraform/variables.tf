@@ -57,3 +57,51 @@ variable "image_tag" {
   type        = string
   default     = "latest"
 }
+
+# --- Cognito ---------------------------------------------------------
+
+variable "cognito_domain_prefix" {
+  description = <<-EOT
+    Globally-unique subdomain for the Cognito Hosted UI under
+    amazoncognito.com. Lowercase letters, digits, and hyphens only.
+    Example: "lawagent-divorse" → https://lawagent-divorse.auth.us-east-1.amazoncognito.com
+  EOT
+  type        = string
+}
+
+variable "google_client_id" {
+  description = "OAuth 2.0 client ID from Google Cloud Console (Web application type)."
+  type        = string
+  sensitive   = true
+}
+
+variable "google_client_secret" {
+  description = "OAuth 2.0 client secret matching google_client_id."
+  type        = string
+  sensitive   = true
+}
+
+variable "cognito_callback_urls" {
+  description = <<-EOT
+    Allowed OAuth redirect URIs for the Next.js web client. Include the
+    dev origin and any deployed origin(s). The path is always
+    /auth/callback.
+  EOT
+  type        = list(string)
+  default     = ["http://localhost:3000/auth/callback"]
+}
+
+variable "cognito_logout_urls" {
+  description = "Allowed post-sign-out redirect URIs for the Next.js web client."
+  type        = list(string)
+  default     = ["http://localhost:3000"]
+}
+
+variable "cognito_allowed_emails" {
+  description = <<-EOT
+    Comma-separated email allowlist enforced by the FastAPI backend.
+    Even if someone authenticates with Cognito/Google, requests are
+    rejected unless their verified email matches one in this list.
+  EOT
+  type        = string
+}

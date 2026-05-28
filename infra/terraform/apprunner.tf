@@ -97,10 +97,16 @@ resource "aws_apprunner_service" "api" {
         port = "8000"
 
         runtime_environment_variables = {
-          LAWAGENT_PROFILE = var.lawagent_profile
-          LAWAGENT_S3_URI  = var.lawagent_s3_uri
-          LAWAGENT_PG_URL  = var.lawagent_pg_url
-          AWS_REGION       = var.aws_region
+          LAWAGENT_PROFILE       = var.lawagent_profile
+          LAWAGENT_S3_URI        = var.lawagent_s3_uri
+          LAWAGENT_PG_URL        = var.lawagent_pg_url
+          AWS_REGION             = var.aws_region
+          # Auth: verify the Cognito JWT and enforce the email allowlist
+          # on every request. AUTH_DISABLED stays unset in prod.
+          COGNITO_REGION         = var.aws_region
+          COGNITO_USER_POOL_ID   = aws_cognito_user_pool.this.id
+          COGNITO_CLIENT_ID      = aws_cognito_user_pool_client.web.id
+          COGNITO_ALLOWED_EMAILS = var.cognito_allowed_emails
         }
       }
     }

@@ -26,13 +26,20 @@ from urllib.parse import urlparse
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from api.auth import require_user
 from settings import get_settings
 
 
-router = APIRouter(prefix="/files", tags=["files"])
+# Router-level dependency: every /files/* route requires a verified user.
+# Individual routes don't need to take `_user: CurrentUser` themselves.
+router = APIRouter(
+    prefix="/files",
+    tags=["files"],
+    dependencies=[Depends(require_user)],
+)
 
 
 PRESIGN_EXPIRES_SECONDS = 15 * 60
