@@ -14,8 +14,9 @@ name: Deploy
 #                        (see infra/aws/README.md for the trust policy)
 
 on:
-  push:
-    branches: [main]
+  # Manual-only until AWS infra is provisioned and repo vars/secrets are
+  # set (see infra/aws/README.md). Re-enable push: [main] once a manual
+  # workflow_dispatch run succeeds end-to-end.
   workflow_dispatch:
 
 concurrency:
