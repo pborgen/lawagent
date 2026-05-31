@@ -47,9 +47,10 @@ variable "lawagent_s3_uri" {
 }
 
 variable "lawagent_pg_url" {
-  description = "Postgres + pgvector connection URL. Stored as a runtime env var on the App Runner service."
+  description = "DEPRECATED — the connection URL is now constructed from the RDS instance in rds.tf (local.pg_url). Set db_password instead. Kept only so existing tfvars don't error; safe to delete."
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "image_tag" {

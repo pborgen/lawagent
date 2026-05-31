@@ -15,6 +15,21 @@ def resolve_connection(connection: Optional[str] = None) -> str:
     return connection or get_settings().require_pg_url()
 
 
+def _engine(connection: Optional[str] = None):
+    """Engine for store operations.
+
+    An explicit connection string yields a one-off engine (tests /
+    overrides). Otherwise reuse the shared, rotation-safe engine from
+    db.session, so cloud password rotation and a single connection pool
+    apply to vector access too.
+    """
+    if connection is not None:
+        return create_engine(connection)
+    from db import get_engine
+
+    return get_engine()
+
+
 def resolve_collection(collection: Optional[str] = None) -> str:
     """A collection name, defaulting to the active profile's collection.
 
@@ -44,7 +59,7 @@ def get_vectorstore(
     return PGVector(
         embeddings=get_embeddings(),
         collection_name=resolve_collection(collection),
-        connection=resolve_connection(connection),
+        connection=_engine(connection),
         use_jsonb=True,
         collection_metadata={
             "embeddings_provider": embeddings_cfg.provider,
@@ -112,7 +127,7 @@ def list_source_paths_under(
           AND e.cmetadata->>'source_path' LIKE :pat
         """
     )
-    engine = create_engine(resolve_connection(connection))
+    engine = _engine(connection)
     with engine.connect() as conn:
         rows = conn.execute(sql, {"name": name, "pat": f"{prefix}%"}).all()
     return [r[0] for r in rows if r[0]]
@@ -140,7 +155,7 @@ def delete_chunks_by_source_paths(
           AND cmetadata->>'source_path' = ANY(CAST(:paths AS TEXT[]))
         """
     )
-    engine = create_engine(resolve_connection(connection))
+    engine = _engine(connection)
     with engine.begin() as conn:
         result = conn.execute(sql, {"name": name, "paths": paths})
         return result.rowcount or 0

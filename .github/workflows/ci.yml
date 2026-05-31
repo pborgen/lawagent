@@ -31,6 +31,11 @@ jobs:
       - name: Install deps (no local/heavy ML groups)
         run: uv sync --frozen
 
+      # Mirrors `make check`'s lint step. Lint only — formatting isn't
+      # enforced (see [tool.ruff] in pyproject.toml).
+      - name: Lint (ruff)
+        run: uv run ruff check apps packages tests
+
       # Tests that need pgvector or external embeddings skip themselves
       # when those aren't available, so a plain `pytest` is safe here.
       - name: Run pytest
@@ -52,6 +57,9 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - run: npm ci
+
+      - name: Lint (eslint)
+        run: npm run lint
 
       - run: npx tsc --noEmit
 
@@ -79,6 +87,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: apps/api/Dockerfile
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max

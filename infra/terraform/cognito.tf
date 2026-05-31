@@ -98,9 +98,9 @@ resource "aws_cognito_user_pool_client" "web" {
 
   # Token lifetimes — short ID/access tokens force regular refreshes,
   # long refresh token keeps the user signed in for ~30 days.
-  id_token_validity      = 60   # minutes
-  access_token_validity  = 60   # minutes
-  refresh_token_validity = 30   # days
+  id_token_validity      = 60 # minutes
+  access_token_validity  = 60 # minutes
+  refresh_token_validity = 30 # days
 
   token_validity_units {
     id_token      = "minutes"

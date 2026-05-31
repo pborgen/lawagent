@@ -17,7 +17,23 @@ s3_bucket_name = "your-lawagent-bucket"
 # Runtime env vars baked into the App Runner service.
 lawagent_profile = "bedrock"
 lawagent_s3_uri  = "s3://your-lawagent-bucket/case/"
-lawagent_pg_url  = "postgresql+psycopg://USER:PASS@your-rds.example.us-east-1.rds.amazonaws.com:5432/lawagent"
+
+# --- Database (RDS PostgreSQL + pgvector) ----------------------------
+# The master password is generated, stored, and auto-rotated by RDS in
+# AWS Secrets Manager — you never set or see it. The App Runner container
+# fetches it at connect time. Everything below has a sane default
+# (db.t4g.micro, Single-AZ, 20 GB gp3, db "lawagent").
+# db_username          = "lawagent"
+# db_name              = "lawagent"
+# db_instance_class    = "db.t4g.micro"
+# db_allocated_storage = 20
+# db_engine_version    = "16.4"
+
+# Initial data load: the DB is private by default, so your laptop can't
+# reach it. To ingest from your machine, flip these on, `terraform
+# apply`, load, then set both back and apply again.
+# db_publicly_accessible = true
+# admin_cidr             = "YOUR.IP.ADD.R/32"
 
 # Image tag for the very first apply (App Runner needs *something* to pull).
 # After CI starts pushing, leave this alone — the deploy workflow rolls

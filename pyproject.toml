@@ -20,6 +20,7 @@ dependencies = [
     "langgraph>=0.2",
     "psycopg[binary]>=3.2",
     "pgvector>=0.3",
+    "sqlalchemy>=2.0",
     "pydantic>=2",
     "pydantic-settings>=2.4",
     "typer>=0.12",
@@ -32,6 +33,7 @@ dependencies = [
     "playwright>=1.47",
     "beautifulsoup4>=4.12",
     "pymupdf>=1.24",
+    "pdf2docx>=0.5",
     "pytesseract>=0.3.10",
     "pillow>=10",
     "apscheduler>=3.10",
@@ -46,9 +48,19 @@ where = ["apps", "packages"]
 [tool.pytest.ini_options]
 pythonpath = ["apps", "packages"]
 
+# Lint only — formatting is NOT enforced (the tree predates `ruff format`,
+# which would rewrite ~37 files). `make check` runs `ruff check`; `make fmt`
+# is opt-in. The default rule set (Pyflakes + a few pycodestyle errors) is
+# intentionally narrow so the gate stays green and signal stays high.
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["data", "apps/web"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "ruff>=0.8",
+    "moto[s3]>=5",
 ]
 local = [
     "langchain-huggingface>=0.1",

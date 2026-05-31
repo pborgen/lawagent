@@ -52,7 +52,7 @@ aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin \
       "$(terraform output -raw ecr_repository_url | cut -d/ -f1)"
 
-docker build -t lawagent-api ../..
+docker build -t lawagent-api -f ../../apps/api/Dockerfile ../..
 docker tag lawagent-api:latest "$(terraform output -raw ecr_repository_url):latest"
 docker push "$(terraform output -raw ecr_repository_url):latest"
 

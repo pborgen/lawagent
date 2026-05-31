@@ -62,9 +62,22 @@ class Settings(BaseSettings):
         alias="LAWAGENT_PROFILES_FILE",
         description="Override path to the profiles YAML (default: config/profiles.yaml).",
     )
+    pricing_file: Optional[str] = Field(
+        default=None,
+        alias="LAWAGENT_PRICING_FILE",
+        description="Override path to the pricing YAML (default: config/pricing.yaml).",
+    )
 
     # --- Vector store (pgvector on Postgres) ---
+    # Local dev / laptop ingest set LAWAGENT_PG_URL directly. In the cloud
+    # the password lives in an RDS-managed Secrets Manager secret, so the
+    # URL is taken apart: host/port/db arrive as env vars and the password
+    # is fetched from pg_secret_arn at connect time (packages/db/session).
     pg_url: Optional[str] = Field(default=None, alias="LAWAGENT_PG_URL")
+    pg_host: Optional[str] = Field(default=None, alias="LAWAGENT_PG_HOST")
+    pg_port: int = Field(default=5432, alias="LAWAGENT_PG_PORT")
+    pg_db: Optional[str] = Field(default=None, alias="LAWAGENT_PG_DB")
+    pg_secret_arn: Optional[str] = Field(default=None, alias="LAWAGENT_PG_SECRET_ARN")
 
     # --- S3 fetcher (apps/s3fetch) ---
     # Default s3:// URI to mirror when `s3fetch pull` is run with no args.
@@ -104,6 +117,10 @@ class Settings(BaseSettings):
     )
     cognito_client_id: Optional[str] = Field(default=None, alias="COGNITO_CLIENT_ID")
     cognito_allowed_emails: str = Field(default="", alias="COGNITO_ALLOWED_EMAILS")
+    # Subset of allowed users granted the admin dashboard (LLM usage
+    # metering). Comma-separated emails; empty = no admins. Seeded onto the
+    # user row at login (apps/api/users._upsert_user).
+    admin_emails: str = Field(default="", alias="LAWAGENT_ADMIN_EMAILS")
     auth_disabled: bool = Field(default=False, alias="LAWAGENT_AUTH_DISABLED")
 
     @model_validator(mode="before")
@@ -130,6 +147,21 @@ class Settings(BaseSettings):
             cleaned[key] = value
         return cleaned
 
+    def uses_db_secret(self) -> bool:
+        """True when the DB password comes from a Secrets Manager secret
+        (cloud) rather than an inline LAWAGENT_PG_URL (local dev)."""
+        return bool(self.pg_secret_arn)
+
+    def require_db_secret(self) -> tuple[str, int, str, str]:
+        """Return (host, port, dbname, secret_arn) for secret-based connects."""
+        if not (self.pg_host and self.pg_db and self.pg_secret_arn):
+            raise RuntimeError(
+                "Secret-based DB config incomplete. Set LAWAGENT_PG_HOST, "
+                "LAWAGENT_PG_DB, and LAWAGENT_PG_SECRET_ARN — or use "
+                "LAWAGENT_PG_URL for local dev."
+            )
+        return self.pg_host, self.pg_port, self.pg_db, self.pg_secret_arn
+
     def require_pg_url(self) -> str:
         if not self.pg_url:
             raise RuntimeError(
@@ -143,6 +175,14 @@ class Settings(BaseSettings):
         return {
             e.strip().lower()
             for e in self.cognito_allowed_emails.split(",")
+            if e.strip()
+        }
+
+    def admin_email_set(self) -> set[str]:
+        """Normalize admin_emails into a lowercased set."""
+        return {
+            e.strip().lower()
+            for e in self.admin_emails.split(",")
             if e.strip()
         }
 

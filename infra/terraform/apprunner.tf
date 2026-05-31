@@ -68,6 +68,21 @@ data "aws_iam_policy_document" "apprunner_instance" {
     ]
     resources = ["arn:aws:s3:::${var.s3_bucket_name}/*"]
   }
+
+  # Fetch the RDS-managed master password at runtime (rotation-safe).
+  statement {
+    sid       = "ReadDbSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_db_instance.this.master_user_secret[0].secret_arn]
+  }
+
+  # Decrypt that secret. The default aws/secretsmanager key allows this
+  # implicitly; scoping to the secret's key also covers a customer-managed key.
+  statement {
+    sid       = "DecryptDbSecret"
+    actions   = ["kms:Decrypt"]
+    resources = [aws_db_instance.this.master_user_secret[0].kms_key_id]
+  }
 }
 
 resource "aws_iam_role_policy" "apprunner_instance" {
@@ -97,10 +112,15 @@ resource "aws_apprunner_service" "api" {
         port = "8000"
 
         runtime_environment_variables = {
-          LAWAGENT_PROFILE       = var.lawagent_profile
-          LAWAGENT_S3_URI        = var.lawagent_s3_uri
-          LAWAGENT_PG_URL        = var.lawagent_pg_url
-          AWS_REGION             = var.aws_region
+          LAWAGENT_PROFILE = var.lawagent_profile
+          LAWAGENT_S3_URI  = var.lawagent_s3_uri
+          AWS_REGION       = var.aws_region
+          # DB connection parts. The password is NOT here — the container
+          # fetches it from the RDS-managed secret at runtime (rotation-safe).
+          LAWAGENT_PG_HOST       = aws_db_instance.this.address
+          LAWAGENT_PG_PORT       = "5432"
+          LAWAGENT_PG_DB         = var.db_name
+          LAWAGENT_PG_SECRET_ARN = aws_db_instance.this.master_user_secret[0].secret_arn
           # Auth: verify the Cognito JWT and enforce the email allowlist
           # on every request. AUTH_DISABLED stays unset in prod.
           COGNITO_REGION         = var.aws_region
@@ -116,6 +136,16 @@ resource "aws_apprunner_service" "api" {
     cpu               = "1024" # 1 vCPU
     memory            = "2048" # 2 GB
     instance_role_arn = aws_iam_role.apprunner_instance.arn
+  }
+
+  # Route the app's outbound traffic through the VPC so it can reach the
+  # private RDS. Bedrock / Cognito / S3 are reached via the VPC endpoints
+  # in network.tf (a VPC connector otherwise cuts off public egress).
+  network_configuration {
+    egress_configuration {
+      egress_type       = "VPC"
+      vpc_connector_arn = aws_apprunner_vpc_connector.this.arn
+    }
   }
 
   health_check_configuration {
