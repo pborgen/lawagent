@@ -303,15 +303,25 @@ def _chunk_statute_like_text(text: str, metadata: DocumentMetadata) -> list[Chun
         _append_text_chunks(chunks, text, metadata)
         return chunks
 
+    # A single-section file (every public.law/official crawler writes one
+    # section per file, and so does CT's per-statute fetch) keeps the citation
+    # already in its frontmatter — re-deriving would force the CT prefix onto,
+    # e.g., an Illinois "Sec. 101." into "Conn. Gen. Stat. § 101". Only a
+    # genuinely multi-section file (CT Practice Book) re-derives a per-section
+    # citation, and those are always Connecticut.
+    single = len(section_blocks) == 1
     for section, section_text in section_blocks:
-        section_metadata = _apply_metadata_overrides(
-            metadata,
-            {
-                "section": section,
-                "citation": _citation_for(metadata.source_type, section),
-                "title": _first_nonempty_line(section_text) or metadata.title,
-            },
-        )
+        if single:
+            section_metadata = metadata
+        else:
+            section_metadata = _apply_metadata_overrides(
+                metadata,
+                {
+                    "section": section,
+                    "citation": _citation_for(metadata.source_type, section),
+                    "title": _first_nonempty_line(section_text) or metadata.title,
+                },
+            )
         _chunk_section_text(section_text, section_metadata, chunks)
 
     return chunks

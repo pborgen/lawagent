@@ -30,12 +30,23 @@ class StatuteCode(BaseModel):
     citation_format: str  # "N.Y. Dom. Rel. Law § {section}" — must contain {section}
     title: Optional[str] = None
     issuing_body: Optional[str] = None
+    # URL path segment public.law serves this state under: "/laws/" (NY),
+    # "/statutes/" (TX, FL, OR, CO, NV), or "/codes/" (CA).
+    base_path: str = "/laws/"
     # public.law navigation shape -> which crawler handles it:
-    #   "ny_article"      = /laws/, code -> article -> section          (NY)
-    #   "tx_hierarchical" = /statutes/, deep title/subtitle/chapter tree (TX)
-    layout: Literal["ny_article", "tx_hierarchical"] = "ny_article"
-    # Restrict the crawl to these container slugs (NY: article slugs; TX: seed
-    # container slugs such as a subtitle). None = whole code.
+    #   "ny_article"      = code -> _article_ -> _section_              (NY)
+    #   "tx_hierarchical" = deep cumulative title/subtitle/chapter tree,
+    #                       leaf slugs carry a "_section_" token        (TX, CA)
+    #   "flat_section"    = containers nest, but leaf sections are flat
+    #                       "<section_prefix>_<number>" slugs with NO
+    #                       "_section_" token                           (FL, OR, CO, NV)
+    layout: Literal["ny_article", "tx_hierarchical", "flat_section"] = "ny_article"
+    # flat_section only: the slug prefix before a section number, e.g. "ors",
+    # "crs", "nrs", "fla._stat." — used to tell section links from containers.
+    section_prefix: Optional[str] = None
+    # Restrict the crawl to these container slugs (NY: article slugs; TX/CA:
+    # cumulative container seeds; flat_section: the containers that directly
+    # list sections). None = whole code.
     articles: Optional[list[str]] = None
 
 
@@ -57,7 +68,15 @@ class StateConfig(BaseModel):
 
     slug: str
     name: str
-    public_law_subdomain: str
+    public_law_subdomain: str = ""
+    # Where statutes come from. "public_law" crawls <subdomain>.public.law;
+    # "official" runs a bespoke crawler against the state's own legislature
+    # site (states not on public.law — each official site is unique, so each
+    # gets its own `apps/ingest/src/official_<slug>.py`).
+    fetcher: Literal["public_law", "official"] = "public_law"
+    # For fetcher="official": names the bespoke handler (see _OFFICIAL_CRAWLERS
+    # in apps/ingest/main.py). "ct_bespoke" delegates to fetch-public.
+    official_handler: Optional[str] = None
     statutes: list[StatuteCode] = []
     forms: list[FetchSpec] = []
     practice_rules: list[FetchSpec] = []
@@ -108,12 +127,7 @@ def load_states() -> JurisdictionsConfig:
 
 
 def get_state(state: str) -> StateConfig:
-    """Resolve a slug or display name to its `StateConfig`.
-
-    Connecticut is intentionally absent from the registry: its corpus is
-    fetched by the bespoke `fetch-public` command, not the generic
-    public.law crawler. Asking for it raises a clear error.
-    """
+    """Resolve a slug or display name to its `StateConfig`."""
     cfg = load_states()
     key = _slug(state)
     if key in cfg.states:
@@ -123,8 +137,7 @@ def get_state(state: str) -> StateConfig:
             return entry
     available = ", ".join(sorted(cfg.states)) or "(none)"
     raise ValueError(
-        f"Unknown state {state!r}. Defined in config/states.yaml: {available}. "
-        f"(Connecticut uses `fetch-public`, not the multi-state registry.)"
+        f"Unknown state {state!r}. Defined in config/states.yaml: {available}."
     )
 
 

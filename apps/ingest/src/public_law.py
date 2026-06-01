@@ -117,10 +117,17 @@ def links_matching(html: str, base_url: str, code_root: str, substr: str) -> lis
 
 
 def _section_number(url: str) -> str:
-    """`..._section_236-a` -> `236-a`."""
+    """Extract the section number from a section URL, across layouts.
+
+    `..._section_236-a`        -> `236-a`   (NY/TX/CA carry a `_section_` token)
+    `fla._stat._61.08`         -> `61.08`   (flat slugs: number is the last
+    `ors_107.105`              -> `107.105`   underscore-separated token, which
+    `crs_14-10-106`            -> `14-10-106` is never itself underscored)
+    """
     tail = url.rsplit("/", 1)[-1]
-    _, _, num = tail.partition("_section_")
-    return num or tail
+    if "_section_" in tail:
+        return tail.split("_section_", 1)[1]
+    return tail.rsplit("_", 1)[-1]
 
 
 _TITLE_TAIL_YEAR_RE = re.compile(r"\s*\(\d{4}\)\s*$")
@@ -162,6 +169,56 @@ def _clean_meta_value(value: str) -> str:
     return normalize_text(value).rstrip(". ").strip()
 
 
+def write_statute_section(
+    *,
+    statutes_dir: Path,
+    slug: str,
+    citation: str,
+    title: str,
+    section: str,
+    jurisdiction: str,
+    issuing_body: str,
+    source_url: str,
+    body: str,
+    force: bool,
+    console: Console,
+) -> dict[str, str]:
+    """Write one statute section to a frontmatter `.txt` file.
+
+    The single, shared sink for every crawler — public.law *and* the bespoke
+    official-site crawlers (`official_*.py`) — so frontmatter shape,
+    metadata-value cleaning, and skip-existing behavior live in one place.
+    Metadata values are cleaned; `body` is written as-is to preserve the
+    statute's paragraph/subsection structure for chunking.
+    """
+    output_path = statutes_dir / f"{slug}.txt"
+    if output_path.exists() and not force:
+        console.print(f"  skipping [yellow]{slug}[/yellow] (exists)")
+        return {"slug": slug, "url": source_url, "status": "skipped"}
+    if not body or not body.strip():
+        console.print(f"  [red]failed[/red] {slug}: no statute text")
+        return {"slug": slug, "url": source_url, "status": "failed",
+                "error": "no statute text"}
+
+    citation = _clean_meta_value(citation)
+    metadata = {
+        "source_type": "statute",
+        "authority_level": "primary",
+        "citation": citation,
+        "title": _clean_meta_value(title) or citation,
+        "section": _clean_meta_value(section),
+        "jurisdiction": jurisdiction,
+        "issuing_body": _clean_meta_value(issuing_body),
+        "source_url": source_url,
+    }
+    statutes_dir.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        render_with_frontmatter(metadata, body, suffix=".txt"), encoding="utf-8"
+    )
+    console.print(f"  fetched [green]{slug}[/green] ({citation})")
+    return {"slug": slug, "url": source_url, "status": "fetched"}
+
+
 def fetch_and_write_section(
     *,
     sec_url: str,
@@ -190,24 +247,20 @@ def fetch_and_write_section(
     time.sleep(delay)
     try:
         html = fetch_html(sec_url)
-        body = _section_body(html)
-        if not body:
-            raise ValueError("no statute text found on section page")
-        citation = _clean_meta_value(code.citation_format.format(section=section))
-        metadata = {
-            "source_type": "statute",
-            "authority_level": "primary",
-            "citation": citation,
-            "title": _clean_meta_value(_section_title(html)) or citation,
-            "section": _clean_meta_value(section),
-            "jurisdiction": state_name,
-            "issuing_body": _clean_meta_value(code.issuing_body or ""),
-            "source_url": sec_url,
-        }
-        content = render_with_frontmatter(metadata, body, suffix=".txt")
-        output_path.write_text(content, encoding="utf-8")
-        console.print(f"  fetched [green]{slug}[/green] ({citation})")
-        return {"slug": slug, "url": sec_url, "status": "fetched"}
+        citation = code.citation_format.format(section=section)
+        return write_statute_section(
+            statutes_dir=statutes_dir,
+            slug=slug,
+            citation=citation,
+            title=_section_title(html),
+            section=section,
+            jurisdiction=state_name,
+            issuing_body=code.issuing_body or "",
+            source_url=sec_url,
+            body=_section_body(html),
+            force=force,
+            console=console,
+        )
     except Exception as exc:
         console.print(f"  [red]failed[/red] {slug}: {exc}")
         return {"slug": slug, "url": sec_url, "status": "failed", "error": str(exc)}
@@ -297,7 +350,7 @@ def crawl_public_law(
     max_sections: int | None,
     console: Console,
 ) -> list[dict[str, str]]:
-    """Crawl an NY-style (`/laws/`, article -> section) code into one file/section."""
+    """Crawl an NY-style (article -> section) code into one file/section."""
     return run_crawl(
         subdomain=subdomain,
         code=code,
@@ -307,7 +360,7 @@ def crawl_public_law(
         delay=delay,
         max_sections=max_sections,
         console=console,
-        path_prefix="/laws/",
+        path_prefix=code.base_path,
         discover=_discover_article,
     )
 
@@ -380,5 +433,6 @@ __all__ = [
     "check_robots",
     "links_matching",
     "fetch_and_write_section",
+    "write_statute_section",
     "USER_AGENT",
 ]

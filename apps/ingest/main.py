@@ -30,7 +30,12 @@ from store import (
     write_chunks,
 )
 from ingest.src.fetch_public import fetch_public_starter
+from ingest.src.official_il import crawl as crawl_il
+from ingest.src.official_nc import crawl as crawl_nc
+from ingest.src.official_oh import crawl as crawl_oh
+from ingest.src.official_pa import crawl as crawl_pa
 from ingest.src.public_law import crawl_public_law, fetch_specs
+from ingest.src.public_law_flat import crawl_public_law_flat
 from ingest.src.public_law_tx import crawl_public_law_tx
 
 # Maps a statute code's `layout` to the crawler that handles that public.law
@@ -38,6 +43,17 @@ from ingest.src.public_law_tx import crawl_public_law_tx
 _STATUTE_CRAWLERS = {
     "ny_article": crawl_public_law,
     "tx_hierarchical": crawl_public_law_tx,
+    "flat_section": crawl_public_law_flat,
+}
+
+# Bespoke crawlers for states NOT on public.law — each official legislature
+# site is unique, so each has its own module. Keyed by StateConfig.official_handler.
+# ("ct_bespoke" is handled separately — it delegates to fetch-public.)
+_OFFICIAL_CRAWLERS = {
+    "il": crawl_il,
+    "oh": crawl_oh,
+    "pa": crawl_pa,
+    "nc": crawl_nc,
 }
 
 
@@ -156,11 +172,51 @@ def fetch_state(
     out = out_dir or Path("data/raw/public") / cfg.slug
     out.mkdir(parents=True, exist_ok=True)
 
+    # Connecticut isn't on public.law — its authoritative corpus comes from
+    # the official cga.ct.gov / jud.ct.gov sources via the bespoke fetcher.
+    # Delegate fully (it writes its own files + manifest under `out`).
+    if cfg.fetcher == "official" and cfg.official_handler == "ct_bespoke":
+        console.print(
+            f"[cyan]{cfg.name}[/cyan]: official sources (public.law has no {cfg.slug})."
+        )
+        m = fetch_public_starter(
+            out_dir=out,
+            force=force,
+            include_statutes=statutes,
+            include_practice_book=True,
+            include_guides=True,
+            include_forms=forms,
+            include_pdfs=pdf,
+            console=console,
+        )
+        c = m["counts"]
+        console.print(
+            f"[green]✓[/green] {cfg.name} corpus ready in [bold]{out}[/bold]. "
+            f"fetched={c['fetched']}, skipped={c['skipped']}, failed={c['failed']}"
+        )
+        console.print(
+            f"Next:\n"
+            f"  [cyan]python -m ingest.main {out} --state {cfg.slug} --dry-run[/cyan]\n"
+            f"  [cyan]python -m ingest.main {out} --state {cfg.slug}[/cyan]"
+        )
+        return
+
     records: dict[str, list[dict[str, str]]] = {
         "statutes": [], "forms": [], "practice_rules": [], "cases": []
     }
 
-    if statutes:
+    if statutes and cfg.fetcher == "official":
+        crawler = _OFFICIAL_CRAWLERS.get(cfg.official_handler or "")
+        if crawler is None:
+            raise typer.BadParameter(
+                f"no official crawler registered for {cfg.slug!r} "
+                f"(official_handler={cfg.official_handler!r})"
+            )
+        records["statutes"] = crawler(
+            cfg, out_dir=out, force=force, delay=delay,
+            max_sections=max_sections, console=console,
+        )
+    elif statutes:
         for code in cfg.statutes:
             crawler = _STATUTE_CRAWLERS[code.layout]
             records["statutes"].extend(

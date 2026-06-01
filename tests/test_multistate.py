@@ -10,6 +10,7 @@ from ingest.src.public_law import (
     _section_title,
     links_matching,
 )
+from ingest.src.public_law_flat import _section_links_flat
 from ingest.src.public_law_tx import _container_links, _tail
 from llm import active_collection, collection_for
 
@@ -39,16 +40,45 @@ class StateRegistryTests(unittest.TestCase):
         self.assertTrue(ny.statutes)
         self.assertIn("{section}", ny.statutes[0].citation_format)
 
-    def test_texas_uses_hierarchical_layout(self) -> None:
-        tx = get_state("tx")
-        self.assertEqual(tx.public_law_subdomain, "texas")
-        self.assertEqual(tx.statutes[0].layout, "tx_hierarchical")
-        self.assertEqual(tx.statutes[0].citation_format, "Tex. Fam. Code § {section}")
+    def test_all_states_present(self) -> None:
+        self.assertEqual(
+            set(available_states()),
+            {"ny", "tx", "ca", "fl", "or", "co", "nv", "ct",
+             "il", "oh", "pa", "nc"},
+        )
 
-    def test_connecticut_is_rejected(self) -> None:
-        # CT uses fetch-public, not the multi-state registry.
-        with self.assertRaises(ValueError):
-            get_state("connecticut")
+    def test_official_states_have_registered_handlers(self) -> None:
+        # Every fetcher="official" state must name a handler wired in main.py.
+        from ingest.main import _OFFICIAL_CRAWLERS
+        for slug in ("il", "oh", "pa", "nc"):
+            st = get_state(slug)
+            self.assertEqual(st.fetcher, "official", slug)
+            self.assertIn(st.official_handler, _OFFICIAL_CRAWLERS, slug)
+            # official states get their own <slug>-law collection
+            self.assertTrue(collection_for(slug).startswith(f"{slug}-law__"), slug)
+
+    def test_layouts_and_schemes(self) -> None:
+        cases = {
+            "ny": ("ny_article", "/laws/"),
+            "tx": ("tx_hierarchical", "/statutes/"),
+            "ca": ("tx_hierarchical", "/codes/"),
+            "fl": ("flat_section", "/statutes/"),
+            "or": ("flat_section", "/statutes/"),
+            "co": ("flat_section", "/statutes/"),
+            "nv": ("flat_section", "/statutes/"),
+        }
+        for slug, (layout, base) in cases.items():
+            code = get_state(slug).statutes[0]
+            self.assertEqual(code.layout, layout, slug)
+            self.assertEqual(code.base_path, base, slug)
+            if layout == "flat_section":
+                self.assertTrue(code.section_prefix, f"{slug} needs section_prefix")
+
+    def test_connecticut_uses_official_fetcher(self) -> None:
+        ct = get_state("ct")
+        self.assertEqual(ct.fetcher, "official")
+        # CT routes to the legacy collection, not ct-law.
+        self.assertTrue(collection_for("ct").startswith("ct-divorce__"))
 
     def test_unknown_state_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -91,6 +121,19 @@ class PublicLawParserTests(unittest.TestCase):
             "236-a",
         )
 
+    def test_section_number_across_layouts(self) -> None:
+        # _section_ token (NY/TX/CA) vs flat slugs (FL/OR/CO/NV).
+        cases = {
+            "https://x/codes/family_code_section_2310": "2310",
+            "https://x/statutes/tex._fam._code_section_9.001": "9.001",
+            "https://x/statutes/fla._stat._61.08": "61.08",
+            "https://x/statutes/ors_107.105": "107.105",
+            "https://x/statutes/crs_14-10-106": "14-10-106",
+            "https://x/statutes/nrs_125.180": "125.180",
+        }
+        for url, expected in cases.items():
+            self.assertEqual(_section_number(url), expected, url)
+
     def test_section_title_strips_label_and_year(self) -> None:
         self.assertEqual(_section_title(self.SECTION), "Action for divorce")
 
@@ -131,6 +174,34 @@ class TexasNavigationTests(unittest.TestCase):
                 "tex._fam._code_title_1_subtitle_c_chapter_7",
             ],
         )
+
+
+class FlatSectionNavigationTests(unittest.TestCase):
+    """FL/OR/CO/NV: section links are <prefix>_<digit>, containers are not."""
+
+    BASE = "https://oregon.public.law/statutes/"
+
+    def test_section_links_flat_picks_only_numbered_slugs(self) -> None:
+        html = (
+            '<a href="ors_107.005">107.005</a>'
+            '<a href="ors_107.105">107.105</a>'
+            '<a href="ors_chapter_107">chapter (container)</a>'
+            '<a href="ors_title_11">title (container)</a>'
+            '<a href="ors_volume_3">volume (container)</a>'
+        )
+        secs = _section_links_flat(html, self.BASE, "ors")
+        self.assertEqual(
+            [_section_number(s) for s in secs], ["107.005", "107.105"]
+        )
+
+    def test_section_links_flat_handles_dotted_prefix(self) -> None:
+        # Florida's prefix itself contains dots: fla._stat._61.08
+        html = (
+            '<a href="fla._stat._61.08">61.08</a>'
+            '<a href="fla._stat._chapter_61">chapter (container)</a>'
+        )
+        secs = _section_links_flat(html, "https://florida.public.law/statutes/", "fla._stat.")
+        self.assertEqual([_section_number(s) for s in secs], ["61.08"])
 
 
 if __name__ == "__main__":

@@ -146,12 +146,37 @@ python -m ingest.main data/raw/public/tx --state tx
   - The **section page** (statute text in `<section>` tags, name in
     `<title>`) is identical across states — those parsers and the
     fetch/write loop live in `apps/ingest/src/public_law.py` and are shared.
-  - **Navigation differs**, so each shape has its own discovery crawler,
-    selected by the registry's `layout` field:
-    `ny_article` (`/laws/`, code → article → section) vs `tx_hierarchical`
-    (`/statutes/`, deep title → subtitle → chapter → section, in
-    `apps/ingest/src/public_law_tx.py`). A new shape = a new discovery fn +
-    a `layout` entry; everything below navigation is reused.
+  - **Navigation differs per state**, so each *shape* has its own discovery
+    crawler, selected by the registry's `layout` field (URL scheme is the
+    separate `base_path` field — `/laws/`, `/statutes/`, or `/codes/`):
+    - `ny_article` — code → `_article_` → `_section_` (NY).
+      `apps/ingest/src/public_law.py`.
+    - `tx_hierarchical` — deep cumulative `_title_/_subtitle_/_chapter_` tree;
+      leaf slugs carry a `_section_` token (TX, CA).
+      `apps/ingest/src/public_law_tx.py`.
+    - `flat_section` — containers nest, but leaf sections are flat
+      `<section_prefix>_<number>` slugs with no `_section_` token (FL, OR, CO,
+      NV). `apps/ingest/src/public_law_flat.py`.
+    A new shape = a new discovery fn (its own file) + a `layout` entry;
+    everything below navigation (robots, section-page parsing, fetch/write) is
+    reused. States sharing a shape share a crawler — adding such a state is
+    config-only.
+- **States not on public.law use bespoke official-site crawlers**
+  (`fetcher: official` + an `official_handler` → `apps/ingest/src/official_<slug>.py`,
+  dispatched by `_OFFICIAL_CRAWLERS` in `apps/ingest/main.py`). Each official
+  legislature site is unique, so each is its own module — but they all reuse
+  `public_law.write_statute_section` (the single frontmatter sink) and
+  `fetch_html`, so only the navigation/extraction differs. Current official
+  states: IL (`ilga.gov`, 750 ILCS 5), OH (`codes.ohio.gov`, R.C. 3105), PA
+  (`legis.state.pa.us`, 23 Pa.C.S.), NC (`ncleg.gov`, G.S. Ch. 50).
+- **Connecticut** is the special official case: `official_handler: ct_bespoke`
+  delegates to `fetch-public` (official `cga.ct.gov` / `jud.ct.gov`) and keeps
+  the legacy `ct-divorce` collection (every other state is `<slug>-law`).
+- **Covered states** (12): CT, NY, TX, CA, FL, OR, CO, NV (uniform sources) +
+  IL, OH, PA, NC (official sites). public.law covers only 7 states; the rest
+  need per-state official crawlers (most aggregators — Justia/FindLaw — and
+  some official sites bot-block with 403, and some free mirrors are stale, so
+  each state is vetted individually).
 - **Forms / practice rules** are explicit per-state URL specs in the
   registry, fetched through the same `_fetch_one` path as CT. Many official
   court sites block bots (NY's `nycourts.gov` returns 403) — leave those

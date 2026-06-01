@@ -113,7 +113,11 @@ def crawl_public_law_tx(
     max_sections: int | None,
     console: Console,
 ) -> list[dict[str, str]]:
-    """Crawl a Texas-style (`/statutes/`, deep hierarchy) code into one file/section."""
+    """Crawl a deep-hierarchy code (cumulative container slugs) into one file/section.
+
+    Used by TX (`/statutes/`) and CA (`/codes/`) — the URL scheme comes from
+    `code.base_path`; the navigation shape is the same.
+    """
     return run_crawl(
         subdomain=subdomain,
         code=code,
@@ -123,7 +127,7 @@ def crawl_public_law_tx(
         delay=delay,
         max_sections=max_sections,
         console=console,
-        path_prefix="/statutes/",
+        path_prefix=code.base_path,
         discover=_discover_hierarchical,
     )
 

@@ -51,6 +51,7 @@ states:
         issuing_body: Texas Legislature
         # Texas uses /statutes/ with a deep title->subtitle->chapter->section
         # tree, so it needs the hierarchical crawler.
+        base_path: /statutes/
         layout: tx_hierarchical
         # Scope to "Subtitle C — Dissolution of Marriage" (chapters 6-9:
         # suit for dissolution, marital property, maintenance). Drop this to
@@ -62,3 +63,162 @@ states:
     courtlistener_courts:
       - tex        # Texas Supreme Court
       - texapp     # Texas Courts of Appeals
+
+  ct:
+    name: Connecticut
+    # Connecticut is NOT on public.law. Its authoritative corpus comes from
+    # the official CT sources (cga.ct.gov statutes, jud.ct.gov forms/Practice
+    # Book) via the bespoke `fetch-public` fetcher. `fetch-state --state ct`
+    # delegates there. CT keeps the legacy `ct-divorce` collection.
+    fetcher: official
+    official_handler: ct_bespoke
+
+  ca:
+    name: California
+    public_law_subdomain: california
+    statutes:
+      - code_root: family_code
+        title: California Family Code
+        citation_format: "Cal. Fam. Code § {section}"
+        issuing_body: California State Legislature
+        base_path: /codes/
+        # Same cumulative-container shape as TX; CA just serves under /codes/.
+        layout: tx_hierarchical
+        # Division 6: Nullity, Dissolution, and Legal Separation (~126 sections).
+        articles:
+          - family_code,_division_6
+    forms: []
+    practice_rules: []
+    courtlistener_courts:
+      - cal        # Supreme Court of California
+      - calctapp   # California Courts of Appeal
+
+  fl:
+    name: Florida
+    public_law_subdomain: florida
+    statutes:
+      - code_root: fla._stat.
+        title: Florida Statutes
+        citation_format: "Fla. Stat. § {section}"
+        issuing_body: Florida Legislature
+        base_path: /statutes/
+        # Flat section slugs (fla._stat._61.08) with no "_section_" token.
+        layout: flat_section
+        section_prefix: fla._stat.
+        # Chapter 61 — Dissolution of Marriage; Support; Time-sharing (Parts I-IV).
+        articles:
+          - fla._stat._chapter_61_part_i
+          - fla._stat._chapter_61_part_ii
+          - fla._stat._chapter_61_part_iii
+          - fla._stat._chapter_61_part_iv
+    forms: []
+    practice_rules: []
+    courtlistener_courts:
+      - fla        # Supreme Court of Florida
+      - fladistctapp  # Florida District Courts of Appeal
+
+  or:
+    name: Oregon
+    public_law_subdomain: oregon
+    statutes:
+      - code_root: ors_chapter_107
+        title: Oregon Revised Statutes
+        citation_format: "Or. Rev. Stat. § {section}"
+        issuing_body: Oregon Legislative Assembly
+        base_path: /statutes/
+        # Each ORS chapter is its own root that lists flat ors_<num> sections.
+        layout: flat_section
+        section_prefix: ors
+        # Chapter 107 — Marital Dissolution, Annulment and Separation (~109 sections).
+        articles:
+          - ors_chapter_107
+    forms: []
+    practice_rules: []
+    courtlistener_courts:
+      - or         # Oregon Supreme Court
+      - orctapp    # Oregon Court of Appeals
+
+  co:
+    name: Colorado
+    public_law_subdomain: colorado
+    statutes:
+      - code_root: crs_title_14
+        title: Colorado Revised Statutes
+        citation_format: "Colo. Rev. Stat. § {section}"
+        issuing_body: Colorado General Assembly
+        base_path: /statutes/
+        # Flat section slugs (crs_14-10-106); seed the dissolution article.
+        layout: flat_section
+        section_prefix: crs
+        # Title 14, Article 10 — Uniform Dissolution of Marriage Act (~56 sections).
+        articles:
+          - crs_title_14_article_10
+    forms: []
+    practice_rules: []
+    courtlistener_courts:
+      - colo       # Colorado Supreme Court
+      - coloctapp  # Colorado Court of Appeals
+
+  nv:
+    name: Nevada
+    public_law_subdomain: nevada
+    statutes:
+      - code_root: nrs_chapter_125
+        title: Nevada Revised Statutes
+        citation_format: "Nev. Rev. Stat. § {section}"
+        issuing_body: Nevada Legislature
+        base_path: /statutes/
+        # Flat section slugs (nrs_125.180); chapter 125 lists sections via
+        # sub-chapters, so seed those directly.
+        layout: flat_section
+        section_prefix: nrs
+        articles:
+          - nrs_chapter_125_sub-chapter_general_provisions
+          - nrs_chapter_125_sub-chapter_divorce
+          - nrs_chapter_125_sub-chapter_separate_maintenance
+          - nrs_chapter_125_sub-chapter_annulment
+    forms: []
+    practice_rules: []
+    courtlistener_courts:
+      - nev        # Supreme Court of Nevada
+      - nevapp     # Nevada Court of Appeals
+
+  # --- States not on public.law: bespoke official-site crawlers ---------------
+  # Each official legislature site is unique, so each has its own crawler module
+  # (apps/ingest/src/official_<slug>.py), dispatched via official_handler.
+
+  il:
+    name: Illinois
+    # 750 ILCS 5 (Illinois Marriage and Dissolution of Marriage Act), ilga.gov.
+    fetcher: official
+    official_handler: il
+    courtlistener_courts:
+      - ill        # Illinois Supreme Court
+      - illappct   # Illinois Appellate Court
+
+  oh:
+    name: Ohio
+    # Ohio Revised Code Chapter 3105 (Divorce, Alimony...), codes.ohio.gov.
+    fetcher: official
+    official_handler: oh
+    courtlistener_courts:
+      - ohio       # Ohio Supreme Court
+      - ohioctapp  # Ohio Courts of Appeals
+
+  pa:
+    name: Pennsylvania
+    # 23 Pa.C.S. Part IV (Divorce), legis.state.pa.us.
+    fetcher: official
+    official_handler: pa
+    courtlistener_courts:
+      - pa         # Pennsylvania Supreme Court
+      - pasuperct  # Pennsylvania Superior Court
+
+  nc:
+    name: North Carolina
+    # N.C. Gen. Stat. Chapter 50 (Divorce and Alimony), ncleg.gov.
+    fetcher: official
+    official_handler: nc
+    courtlistener_courts:
+      - nc         # North Carolina Supreme Court
+      - ncctapp    # North Carolina Court of Appeals

@@ -78,6 +78,46 @@ class IngestionChunkingTests(unittest.TestCase):
             self.assertEqual(chunk.metadata.citation, "N.Y. Dom. Rel. Law § 170")
             self.assertNotIn("Conn.", chunk.metadata.citation)
 
+    def test_single_section_with_sec_heading_keeps_frontmatter_citation(self) -> None:
+        # Illinois (and other official sources) write one section per file whose
+        # body DOES contain a "Sec. N." heading. The statute chunker must keep
+        # the frontmatter citation, not re-derive a Connecticut one.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "il-750-ilcs-5-504.txt"
+            path.write_text(
+                "\n".join(
+                    [
+                        "---",
+                        "source_type: statute",
+                        "authority_level: primary",
+                        "citation: 750 ILCS 5/504",
+                        "title: Maintenance",
+                        "section: 504",
+                        "jurisdiction: Illinois",
+                        "---",
+                        "(750 ILCS 5/504)",
+                        "Sec. 504. Maintenance.",
+                        "(a) Entitlement to maintenance. The court may grant maintenance.",
+                        "",
+                        "(b) Amount and duration. The court shall consider all factors.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            chunks = chunk_file(path)
+
+        self.assertTrue(chunks)
+        for chunk in chunks:
+            self.assertEqual(chunk.metadata.jurisdiction, "Illinois")
+            self.assertTrue(
+                chunk.metadata.citation.startswith("750 ILCS 5/504"),
+                chunk.metadata.citation,
+            )
+            self.assertNotIn("Conn.", chunk.metadata.citation)
+        # subsection split still appends to the Illinois citation
+        self.assertIn("750 ILCS 5/504(a)", {c.metadata.citation for c in chunks})
+
     def test_frontmatter_overrides_filename_inference(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "guide-divorce-options.md"
