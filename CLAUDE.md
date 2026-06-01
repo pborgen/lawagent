@@ -45,6 +45,11 @@ lists every target.
    - A profile **bundles chat + embeddings on purpose**: each gets its own
      pgvector collection (`llm.active_collection()`) so you never query
      vectors of the wrong dimension. Switching profiles ⇒ **re-ingest**.
+   - **Per state**: `llm.collection_for(slug)` returns `<slug>-law__<model>`
+     (e.g. `ny-law__…`). Connecticut keeps the legacy `ct-divorce__<model>`
+     base for backward-compat — don't "normalize" it to `ct-law` (that would
+     orphan the existing CT vectors). The agent's collection is chosen by the
+     caller (`ask(..., state=…)` / `RETRIEVAL_STATE`), never by the LLM.
 
 2. **All vector / DB access goes through a package, never raw in `apps/`.**
    - `packages/store/` — pgvector reads/writes (`write_chunks`,
@@ -72,7 +77,7 @@ apps/
   api/        FastAPI — thin /chat wrapper around the agent; auth, files, projects
   agent/      LangGraph agent: retrieve → reason → cite  (code in agent/src/)
   web/        Next.js 16 frontend (landing + /chat). SEPARATE npm project — see below
-  ingest/     `python -m ingest.main ...`  (load/fetch-public → chunk → embed)
+  ingest/     `python -m ingest.main ...`  (fetch-public/fetch-state → chunk → embed)
   efile/      CT eServices scraper (Playwright) → data/case/efile/<crn>/
   s3fetch/    mirror an S3 prefix → data/case/s3/<id>/
   pdf2text/   PDF → text (+OCR) → data/case/.../text/
@@ -84,9 +89,10 @@ packages/
   store/      Postgres + pgvector boundary (the only vector I/O)
   db/         SQLAlchemy ORM for app data (users, projects)
   ingestion/  chunking + ingest pipeline (calls store)
-  corpus/     shared schemas (Chunk, DocumentMetadata, Citation)
+  corpus/     shared schemas (Chunk, DocumentMetadata, Citation) + state registry
   settings/   env-driven config loader
 config/profiles.yaml   model profiles (chat + embeddings bundles)
+config/states.yaml     per-state source registry (multi-state, non-CT)
 docs/                  vision, architecture, data-flow, mvp-scope, open-questions
 ```
 

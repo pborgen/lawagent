@@ -1,0 +1,64 @@
+# Per-state source registry for the multi-state knowledge base.
+#
+# Adding a state = adding a block here, not changing code. Each state's
+# statutes are crawled from <public_law_subdomain>.public.law (uniform
+# TOC -> article -> section structure; robots.txt permits /laws/). Forms
+# and practice rules are explicit per-state spec lists pointing at that
+# state's official site. Case law is pulled (bounded) from CourtListener.
+#
+# Loader + validation: packages/corpus/jurisdictions.py
+#
+# NOTE on collections: each state gets its own pgvector collection
+# (`<slug>-law__<embeddings-model-slug>`), EXCEPT Connecticut, which keeps
+# the legacy `ct-divorce` base so existing CT vectors need no re-ingest.
+# See llm.collection_for. The canonical state identifier everywhere is the
+# slug (e.g. `ny`), never the display name.
+#
+# NOTE on reachability: many official state court/legislature sites block
+# automated requests (NY's nycourts.gov and nysenate.gov both return 403).
+# When that happens, leave `forms`/`practice_rules` empty — the statute
+# leg (public.law) is the reliable backbone. Populate the spec lists only
+# for states whose official sources are actually fetchable.
+
+states:
+  ny:
+    name: New York
+    public_law_subdomain: newyork
+    statutes:
+      - code_root: n.y._domestic_relations_law
+        title: New York Domestic Relations Law
+        citation_format: "N.Y. Dom. Rel. Law § {section}"
+        issuing_body: New York State Legislature
+        # articles: null  -> crawl the whole code. Restrict to specific
+        # public.law article slugs (e.g. n.y._domestic_relations_law_article_10)
+        # to scope a focused divorce KB.
+        articles: null
+    # nycourts.gov blocks bots (403) — populate when a reachable source exists.
+    forms: []
+    practice_rules: []
+    # CourtListener court IDs for bounded case-law seeding (Phase 6).
+    courtlistener_courts:
+      - ny        # New York Court of Appeals
+      - nyappdiv  # Appellate Division
+
+  tx:
+    name: Texas
+    public_law_subdomain: texas
+    statutes:
+      - code_root: tex._fam._code
+        title: Texas Family Code
+        citation_format: "Tex. Fam. Code § {section}"
+        issuing_body: Texas Legislature
+        # Texas uses /statutes/ with a deep title->subtitle->chapter->section
+        # tree, so it needs the hierarchical crawler.
+        layout: tx_hierarchical
+        # Scope to "Subtitle C — Dissolution of Marriage" (chapters 6-9:
+        # suit for dissolution, marital property, maintenance). Drop this to
+        # crawl the whole Family Code.
+        articles:
+          - tex._fam._code_title_1_subtitle_c
+    forms: []
+    practice_rules: []
+    courtlistener_courts:
+      - tex        # Texas Supreme Court
+      - texapp     # Texas Courts of Appeals

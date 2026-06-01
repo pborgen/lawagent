@@ -36,6 +36,48 @@ class IngestionChunkingTests(unittest.TestCase):
         self.assertEqual(chunks[1].metadata.subsection, "(b)")
         self.assertEqual(chunks[1].metadata.citation, "Conn. Gen. Stat. § 46b-82(b)")
 
+    def test_non_ct_statute_keeps_frontmatter_citation(self) -> None:
+        # A public.law-sourced statute (one section per file, no `Sec. N.`
+        # heading) carries its own citation in frontmatter. Every chunk must
+        # keep THAT section-level citation — never a hardcoded Connecticut
+        # prefix, and never a fabricated subsection cite from inline `(a)`
+        # enumerations (cf. NY DRL § 170's nested `(a)` under subdivision 6).
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "nydrl-170.txt"
+            path.write_text(
+                "\n".join(
+                    [
+                        "---",
+                        "source_type: statute",
+                        "authority_level: primary",
+                        "citation: N.Y. Dom. Rel. Law § 170",
+                        "title: Action for divorce",
+                        "section: 170",
+                        "jurisdiction: New York",
+                        "issuing_body: New York State Legislature",
+                        "---",
+                        "An action for divorce may be maintained on any of the following grounds:",
+                        "",
+                        "(6) The spouses have lived apart pursuant to a written agreement "
+                        "of separation that recites:",
+                        "",
+                        "(a) the names and addresses of each of the parties,",
+                        "",
+                        "(b) the date of marriage of the parties.",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            chunks = chunk_file(path)
+
+        self.assertTrue(chunks)
+        for chunk in chunks:
+            self.assertEqual(chunk.metadata.source_type, SourceType.STATUTE)
+            self.assertEqual(chunk.metadata.jurisdiction, "New York")
+            self.assertEqual(chunk.metadata.citation, "N.Y. Dom. Rel. Law § 170")
+            self.assertNotIn("Conn.", chunk.metadata.citation)
+
     def test_frontmatter_overrides_filename_inference(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "guide-divorce-options.md"

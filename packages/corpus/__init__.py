@@ -1,3 +1,12 @@
+from corpus.jurisdictions import (
+    FetchSpec,
+    JurisdictionsConfig,
+    StateConfig,
+    StatuteCode,
+    available_states,
+    get_state,
+    load_states,
+)
 from corpus.schema import (
     AuthorityLevel,
     SourceType,
@@ -12,4 +21,11 @@ __all__ = [
     "DocumentMetadata",
     "Chunk",
     "Citation",
+    "FetchSpec",
+    "JurisdictionsConfig",
+    "StateConfig",
+    "StatuteCode",
+    "available_states",
+    "get_state",
+    "load_states",
 ]

@@ -5,7 +5,12 @@ from typing import Literal
 from langchain.agents import create_agent
 
 from agent.src.prompts import SYSTEM_PROMPT, output_directive
-from agent.src.tools import RETRIEVAL_RECORDER, RetrievedSource, retrieve
+from agent.src.tools import (
+    RETRIEVAL_RECORDER,
+    RETRIEVAL_STATE,
+    RetrievedSource,
+    retrieve,
+)
 from llm import get_chat_model, usage_callbacks
 
 
@@ -27,19 +32,23 @@ def build_agent():
 
 
 def ask_with_sources(
-    question: str, mode: Mode = "short"
+    question: str, mode: Mode = "short", state: str | None = None
 ) -> tuple[str, list[RetrievedSource]]:
     """Run the agent and return the answer plus the chunks it retrieved.
 
     Sources are captured from inside the `retrieve` tool via a
     ContextVar, so they reflect what the agent actually pulled — not
     whatever URLs the LLM remembered or invented.
+
+    `state` selects the jurisdiction's vector collection (a slug like "ny");
+    `None` retrieves from Connecticut. The caller sets it — not the LLM.
     """
     agent = build_agent()
     user_message = f"{output_directive(mode)}\n\nQuestion: {question}"
 
     sources: list[RetrievedSource] = []
     token = RETRIEVAL_RECORDER.set(sources)
+    state_token = RETRIEVAL_STATE.set(state)
     try:
         # `usage_callbacks()` meters token usage into the active recorder
         # (llm.usage.record_usage), set by the API's /chat handler. It's a
@@ -50,6 +59,7 @@ def ask_with_sources(
         )
     finally:
         RETRIEVAL_RECORDER.reset(token)
+        RETRIEVAL_STATE.reset(state_token)
 
     final = result["messages"][-1]
     answer = final.content if hasattr(final, "content") else str(final)
@@ -67,11 +77,11 @@ def ask_with_sources(
     return answer, uniq
 
 
-def ask(question: str, mode: Mode = "short") -> str:
+def ask(question: str, mode: Mode = "short", state: str | None = None) -> str:
     """Run the agent and return just the final answer text.
 
     Kept as a thin wrapper over `ask_with_sources` so existing string-only
     callers (CLI, programmatic entrypoint) keep working unchanged.
     """
-    answer, _ = ask_with_sources(question, mode=mode)
+    answer, _ = ask_with_sources(question, mode=mode, state=state)
     return answer

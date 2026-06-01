@@ -84,8 +84,10 @@ def pg_url() -> str:
                 "local embeddings deps not installed — run `uv sync --group local`"
             )
     else:
-        key = _PROVIDER_KEY[provider]
-        if not os.environ.get(key):
+        # Hosted providers (voyage/openai) need an API key; keyless providers
+        # (ollama, bedrock via the AWS chain) have no env-var gate here.
+        key = _PROVIDER_KEY.get(provider)
+        if key and not os.environ.get(key):
             pytest.skip(f"{key} not set — needed to embed chunks with the real provider")
     return url
 

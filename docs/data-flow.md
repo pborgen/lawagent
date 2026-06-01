@@ -118,11 +118,54 @@ file, chunks it with citation-preserving metadata
 (`{source, citation, section, subsection, chunk_index, source_type}`),
 embeds the chunks, and writes them to **Postgres + pgvector**.
 
-- Default collection: `ct-divorce`. Pass `--collection` to separate private
-  case material from public law (e.g. `--collection ct-divorce-case`).
+- Default collection: `ct-divorce` (Connecticut). Pass `--state <slug>` to
+  target another state's collection (`<slug>-law`), or `--collection` to set
+  a name explicitly (e.g. separate private case material from public law).
 - `--dry-run` chunks and reports counts without embedding or writing.
 - Requires Postgres running (`docker compose up`) and `LAWAGENT_PG_URL` set,
   or an explicit `--connection`.
+
+## Other states — `fetch-state`
+
+CT's public corpus is hand-curated (`fetch-public`, official `jud.ct.gov` /
+`cga.ct.gov` URLs). Every other state is **data-driven** from
+[config/states.yaml](../config/states.yaml):
+
+```bash
+# statutes (public.law) + forms/practice-rules (registry) + optional case law
+python -m ingest.main fetch-state --state ny            # --max-sections N to smoke-test
+python -m ingest.main data/raw/public/ny --state ny     # ingest into the ny-law collection
+python -m ingest.main fetch-state --state tx            # Texas Family Code (deeper layout)
+python -m ingest.main data/raw/public/tx --state tx
+```
+
+- **Statutes** are crawled from `<state>.public.law`, one frontmatter file
+  per section with a jurisdiction-correct citation (`N.Y. Dom. Rel. Law §
+  236`, `Tex. Fam. Code § 9.001`). The crawl is polite (`--delay`),
+  resumable (skips existing files), and robots-checked.
+  - The **section page** (statute text in `<section>` tags, name in
+    `<title>`) is identical across states — those parsers and the
+    fetch/write loop live in `apps/ingest/src/public_law.py` and are shared.
+  - **Navigation differs**, so each shape has its own discovery crawler,
+    selected by the registry's `layout` field:
+    `ny_article` (`/laws/`, code → article → section) vs `tx_hierarchical`
+    (`/statutes/`, deep title → subtitle → chapter → section, in
+    `apps/ingest/src/public_law_tx.py`). A new shape = a new discovery fn +
+    a `layout` entry; everything below navigation is reused.
+- **Forms / practice rules** are explicit per-state URL specs in the
+  registry, fetched through the same `_fetch_one` path as CT. Many official
+  court sites block bots (NY's `nycourts.gov` returns 403) — leave those
+  lists empty when unreachable; statutes are the reliable backbone.
+- **Case law** (optional, `--cases`) is a bounded seed from CourtListener
+  (`apps/ingest/src/courtlistener.py`); needs `COURTLISTENER_API_TOKEN` and
+  skips cleanly without it.
+- **Per-state collections:** each state writes to `<slug>-law__<model>`
+  (e.g. `ny-law__nomic-embed-text`) via `llm.collection_for(slug)`.
+  Connecticut keeps the legacy `ct-divorce__<model>` base for backward-compat
+  (no re-ingest). The agent's collection is set per request (see Stage 4),
+  never by the LLM.
+
+Add a state = add a block to `config/states.yaml`, not code.
 
 ## Stage 4 — Read: the agent and CLI
 
@@ -131,7 +174,9 @@ Everything downstream reads from pgvector through one function,
 
 - `apps/agent` exposes a `retrieve(query, k, source_type)` LangGraph tool
   (`apps/agent/src/tools.py`) that runs `similarity_search` against the
-  store and returns passages with their citations.
+  store and returns passages with their citations. Which state's collection
+  it reads is set by the caller via the `RETRIEVAL_STATE` ContextVar
+  (`ask(..., state="ny")`), not chosen by the LLM; `None` → Connecticut.
 - `apps/cli` is the user surface: `lawagent ask` / `memo` / `annotate`.
 
 Answers are grounded **only** in retrieved chunks, and each chunk carries
@@ -141,7 +186,8 @@ its citation so claims can be traced back to a real source.
 
 | Location | Written by | Purpose |
 |----------|-----------|---------|
-| `data/raw/public/` | `ingest fetch-public` | public source text + manifest |
+| `data/raw/public/` | `ingest fetch-public` | CT public source text + manifest |
+| `data/raw/public/<state>/` | `ingest fetch-state` | other states' public source text + manifest |
 | `data/case/efile/<crn>/docs/` | `efile pull` | original case PDFs |
 | `data/case/efile/<crn>/pages/` | `efile pull` | raw HTML snapshot for diffing |
 | `data/case/efile/<crn>/text/` | `pdf2text convert` | converted markdown + sidecars |

@@ -89,6 +89,19 @@ def _citation_for(source_type: SourceType, section: str, subsection: str | None 
     return section
 
 
+def _subsection_citation(base_citation: str, subsection: str) -> str:
+    """Cite a subsection by appending to the section's own citation.
+
+    Deriving from the document's existing citation (rather than rebuilding a
+    hardcoded jurisdiction prefix) keeps this state-agnostic: a CT section
+    cited `Conn. Gen. Stat. § 46b-82` yields `…§ 46b-82(a)` (byte-identical
+    to the old hardcoded path), while a NY section cited
+    `N.Y. Dom. Rel. Law § 236` yields `…§ 236(a)` instead of corrupting it
+    into a Connecticut citation.
+    """
+    return f"{base_citation}{subsection}"
+
+
 def _apply_metadata_overrides(
     metadata: DocumentMetadata,
     overrides: dict[str, str | None],
@@ -268,11 +281,7 @@ def _chunk_section_text(
             metadata,
             {
                 "subsection": subsection_value,
-                "citation": _citation_for(
-                    metadata.source_type,
-                    metadata.section or metadata.citation,
-                    subsection_value,
-                ),
+                "citation": _subsection_citation(metadata.citation, subsection_value),
             },
         )
         _append_text_chunks(chunks, block_with_context, subsection_metadata)
@@ -283,7 +292,15 @@ def _chunk_statute_like_text(text: str, metadata: DocumentMetadata) -> list[Chun
     section_blocks = _split_on_matches(text, _SECTION_RE, "section")
 
     if not section_blocks:
-        _chunk_section_text(text, metadata, chunks)
+        # No `Sec. N.` headings. This is the shape of a public.law-sourced
+        # statute (one section per file, citation already in frontmatter).
+        # Chunk it as plain text so we keep that section-level citation —
+        # do NOT run the CT subsection splitter, whose `(a)`-style regex
+        # would mis-split inline enumerations (e.g. NY DRL § 170's nested
+        # `(a)`,`(b)` under subdivision (6)) into fabricated `§ 170(a)`
+        # citations. CT statute/Practice Book files always carry `Sec. N.`
+        # headings, so they take the section-aware path below.
+        _append_text_chunks(chunks, text, metadata)
         return chunks
 
     for section, section_text in section_blocks:

@@ -67,6 +67,18 @@ class Settings(BaseSettings):
         alias="LAWAGENT_PRICING_FILE",
         description="Override path to the pricing YAML (default: config/pricing.yaml).",
     )
+    states_file: Optional[str] = Field(
+        default=None,
+        alias="LAWAGENT_STATES_FILE",
+        description="Override path to the per-state source registry "
+        "(default: config/states.yaml).",
+    )
+    courtlistener_api_token: Optional[str] = Field(
+        default=None,
+        alias="COURTLISTENER_API_TOKEN",
+        description="Free Law Project / CourtListener API token, used by "
+        "`fetch-state --cases` to seed case law. Unset → case law is skipped.",
+    )
 
     # --- Vector store (pgvector on Postgres) ---
     # Local dev / laptop ingest set LAWAGENT_PG_URL directly. In the cloud
@@ -116,6 +128,13 @@ class Settings(BaseSettings):
         default=None, alias="COGNITO_USER_POOL_ID"
     )
     cognito_client_id: Optional[str] = Field(default=None, alias="COGNITO_CLIENT_ID")
+    # Additional Cognito app-client IDs whose tokens the API should accept,
+    # beyond cognito_client_id. Comma-separated. Used to admit the native
+    # mobile app client (apps/mobile), which is a separate public client and
+    # so issues tokens with a different `aud`. Empty = web client only.
+    cognito_extra_audiences: str = Field(
+        default="", alias="COGNITO_EXTRA_AUDIENCES"
+    )
     cognito_allowed_emails: str = Field(default="", alias="COGNITO_ALLOWED_EMAILS")
     # Subset of allowed users granted the admin dashboard (LLM usage
     # metering). Comma-separated emails; empty = no admins. Seeded onto the
@@ -200,6 +219,20 @@ class Settings(BaseSettings):
                 "LAWAGENT_AUTH_DISABLED=true for local dev."
             )
         return self.cognito_region, self.cognito_user_pool_id, self.cognito_client_id
+
+    def cognito_audiences(self) -> list[str]:
+        """Every Cognito app-client ID whose tokens the API accepts.
+
+        Always includes the primary (web) client_id; appends any IDs from
+        cognito_extra_audiences (e.g. the native mobile client). A token is
+        valid when its `aud` matches any member. With the extra var unset,
+        this is just [client_id] — identical to the single-audience behavior.
+        """
+        _, _, client_id = self.require_cognito()
+        extra = [
+            a.strip() for a in self.cognito_extra_audiences.split(",") if a.strip()
+        ]
+        return [client_id, *extra]
 
     def require_efile_credentials(self) -> tuple[str, str]:
         if not self.efile_username or not self.efile_password:

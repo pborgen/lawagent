@@ -14,6 +14,7 @@ from llm.profiles import (
     Profile,
     active_collection,
     active_profile_name,
+    collection_for,
     get_active_profile,
     load_profiles,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "get_active_profile",
     "active_profile_name",
     "active_collection",
+    "collection_for",
     "load_profiles",
     "cost_usd",
     "UsageEvent",

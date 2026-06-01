@@ -125,11 +125,37 @@ def _slug(text: str) -> str:
     return _SLUG_RE.sub("-", text.lower()).strip("-")
 
 
-def active_collection() -> str:
-    """The pgvector collection name for the active profile.
+# Connecticut keeps the original `collection_base` (`ct-divorce`) rather than
+# the mechanical `ct-law`, so the existing CT vectors stay addressable with no
+# re-ingest. Every other state derives `<slug>-law`.
+_CT_ALIASES: frozenset[str] = frozenset({"ct", "connecticut", "ct-divorce"})
 
-    `<collection_base>__<embeddings-model-slug>` — so each embeddings
-    model reads from and writes to its own collection.
+
+def _collection_base_for_state(state: str | None, cfg: ProfilesConfig) -> str:
+    if state is None or _slug(state) in _CT_ALIASES:
+        return cfg.collection_base
+    return f"{_slug(state)}-law"
+
+
+def collection_for(state: str | None = None) -> str:
+    """The pgvector collection name for `state` + the active embeddings model.
+
+    `<state-base>__<embeddings-model-slug>` — the model slug is always
+    appended so each embeddings model reads/writes its own collection and
+    we never query vectors of the wrong dimension.
+
+    `state` is a slug or name (`"ny"`, `"New York"`). `None` and any CT alias
+    map to the legacy `collection_base` (`ct-divorce`) for backward-compat;
+    every other state becomes `<slug>-law` (e.g. `ny-law`).
     """
     cfg = load_profiles()
-    return f"{cfg.collection_base}__{_slug(get_active_profile().embeddings.model)}"
+    base = _collection_base_for_state(state, cfg)
+    return f"{base}__{_slug(get_active_profile().embeddings.model)}"
+
+
+def active_collection() -> str:
+    """The pgvector collection name for the active profile (Connecticut).
+
+    Thin alias for `collection_for(None)`, kept for existing call sites.
+    """
+    return collection_for(None)

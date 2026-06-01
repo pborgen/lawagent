@@ -10,7 +10,7 @@ collection (see `llm.active_collection`). Store functions default to the
 active profile's collection when `collection` is not passed.
 """
 
-from llm import active_collection
+from llm import active_collection, collection_for
 from store.pgvector import (
     delete_chunks_by_source_paths,
     delete_collection,
@@ -24,6 +24,7 @@ from store.pgvector import (
 
 __all__ = [
     "active_collection",
+    "collection_for",
     "delete_chunks_by_source_paths",
     "delete_collection",
     "get_vectorstore",

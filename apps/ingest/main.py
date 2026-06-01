@@ -11,6 +11,7 @@ Usage:
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Optional
@@ -18,20 +19,31 @@ from typing import Optional
 import typer
 from rich.console import Console
 
+from corpus import get_state
 from ingestion import discover_files
 from ingestion.chunking import chunk_file
 from store import (
     active_collection,
+    collection_for,
     delete_chunks_by_source_paths,
     list_source_paths_under,
     write_chunks,
 )
 from ingest.src.fetch_public import fetch_public_starter
+from ingest.src.public_law import crawl_public_law, fetch_specs
+from ingest.src.public_law_tx import crawl_public_law_tx
+
+# Maps a statute code's `layout` to the crawler that handles that public.law
+# navigation shape. Add a shape = add a crawler + an entry here.
+_STATUTE_CRAWLERS = {
+    "ny_article": crawl_public_law,
+    "tx_hierarchical": crawl_public_law_tx,
+}
 
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 console = Console()
-_KNOWN_COMMANDS = {"fetch-public", "ingest", "prune"}
+_KNOWN_COMMANDS = {"fetch-public", "fetch-state", "ingest", "prune"}
 _ROOT_FLAGS = {"--help", "-h", "--show-completion", "--install-completion"}
 
 
@@ -95,12 +107,142 @@ def fetch_public(
     )
 
 
+@app.command("fetch-state")
+def fetch_state(
+    state: str = typer.Option(
+        ..., help="State slug from config/states.yaml (e.g. 'ny')."
+    ),
+    out_dir: Optional[Path] = typer.Option(
+        None,
+        help="Output directory. Defaults to data/raw/public/<state-slug>.",
+    ),
+    force: bool = typer.Option(False, help="Overwrite files that already exist."),
+    delay: float = typer.Option(
+        0.5, help="Seconds to pause between requests (be polite to public.law)."
+    ),
+    max_sections: Optional[int] = typer.Option(
+        None,
+        help="Cap statute sections per code (smoke-test the crawl quickly).",
+    ),
+    statutes: bool = typer.Option(
+        True, "--statutes/--no-statutes", help="Crawl statutes from public.law."
+    ),
+    forms: bool = typer.Option(
+        True, "--forms/--no-forms", help="Fetch the registry's form specs."
+    ),
+    practice_rules: bool = typer.Option(
+        True,
+        "--practice-rules/--no-practice-rules",
+        help="Fetch the registry's practice-rule specs.",
+    ),
+    cases: bool = typer.Option(
+        False,
+        "--cases/--no-cases",
+        help="Seed bounded case law from CourtListener (needs COURTLISTENER_API_TOKEN).",
+    ),
+    max_cases: int = typer.Option(
+        25, help="Max opinions to seed when --cases is set."
+    ),
+    pdf: bool = typer.Option(
+        True, "--pdf/--no-pdf", help="Include PDF form/rule sources."
+    ),
+) -> None:
+    """Build a state's public corpus into data/raw/ (statutes, forms, rules, cases).
+
+    Statutes come from <state>.public.law; forms and practice rules from the
+    registry's explicit per-state URLs; case law (optional) from CourtListener.
+    """
+    cfg = get_state(state)
+    out = out_dir or Path("data/raw/public") / cfg.slug
+    out.mkdir(parents=True, exist_ok=True)
+
+    records: dict[str, list[dict[str, str]]] = {
+        "statutes": [], "forms": [], "practice_rules": [], "cases": []
+    }
+
+    if statutes:
+        for code in cfg.statutes:
+            crawler = _STATUTE_CRAWLERS[code.layout]
+            records["statutes"].extend(
+                crawler(
+                    subdomain=cfg.public_law_subdomain,
+                    code=code,
+                    state_name=cfg.name,
+                    out_dir=out,
+                    force=force,
+                    delay=delay,
+                    max_sections=max_sections,
+                    console=console,
+                )
+            )
+
+    if forms:
+        records["forms"] = fetch_specs(
+            cfg.forms, out, "forms", force=force, include_pdfs=pdf, console=console
+        )
+    if practice_rules:
+        records["practice_rules"] = fetch_specs(
+            cfg.practice_rules, out, "practice_rules",
+            force=force, include_pdfs=pdf, console=console,
+        )
+
+    if cases:
+        from ingest.src.courtlistener import fetch_courtlistener_cases
+
+        records["cases"] = fetch_courtlistener_cases(
+            cfg, out, max_cases=max_cases, force=force, console=console
+        )
+    elif cfg.courtlistener_courts:
+        console.print(
+            "[dim]case law available via --cases "
+            "(needs COURTLISTENER_API_TOKEN)[/dim]"
+        )
+
+    def _count(recs: list[dict[str, str]], status: str) -> int:
+        return sum(1 for r in recs if r.get("status") == status)
+
+    manifest = {
+        "state": cfg.slug,
+        "name": cfg.name,
+        "counts": {
+            kind: {
+                "fetched": _count(recs, "fetched"),
+                "skipped": _count(recs, "skipped"),
+                "failed": _count(recs, "failed"),
+                "total": len(recs),
+            }
+            for kind, recs in records.items()
+        },
+        "documents": records,
+    }
+    (out / "public_sources_manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
+
+    totals = manifest["counts"]
+    console.print(
+        f"[green]✓[/green] {cfg.name} corpus ready in [bold]{out}[/bold]. "
+        + ", ".join(f"{k}={v['fetched']}/{v['total']}" for k, v in totals.items())
+    )
+    console.print(
+        f"Next:\n"
+        f"  [cyan]python -m ingest.main {out} --state {cfg.slug} --dry-run[/cyan]\n"
+        f"  [cyan]python -m ingest.main {out} --state {cfg.slug}[/cyan]"
+    )
+
+
 @app.command()
 def ingest(
     source: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=True),
+    state: Optional[str] = typer.Option(
+        None,
+        help="State slug (e.g. 'ny') — writes to that state's collection. "
+        "Omit for Connecticut (the default collection).",
+    ),
     collection: Optional[str] = typer.Option(
         None,
-        help="pgvector collection name. Defaults to the active profile's collection.",
+        help="pgvector collection name. Overrides --state. Defaults to the "
+        "active profile's (Connecticut) collection.",
     ),
     connection: str = typer.Option(
         None,
@@ -143,7 +285,7 @@ def ingest(
         )
         return
 
-    target = collection or active_collection()
+    target = collection or collection_for(state)
     console.print(f"\nEmbedding [bold]{len(chunks)}[/bold] chunks…")
     write_chunks(chunks, collection=target, connection=connection)
     console.print(

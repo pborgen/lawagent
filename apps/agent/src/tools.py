@@ -5,7 +5,7 @@ from typing import Optional, TypedDict
 
 from langchain_core.tools import tool
 
-from store import similarity_search
+from store import collection_for, similarity_search
 
 
 class RetrievedSource(TypedDict):
@@ -31,10 +31,18 @@ RETRIEVAL_RECORDER: ContextVar[Optional[list[RetrievedSource]]] = ContextVar(
     "retrieval_recorder", default=None
 )
 
+# Which state's collection the retrieve tool reads from. Set by `ask()` from
+# the request's jurisdiction (a state slug like "ny"); `None` → Connecticut.
+# A ContextVar — not a tool argument — so the *caller* picks the jurisdiction,
+# never the LLM, and concurrent requests don't cross collections.
+RETRIEVAL_STATE: ContextVar[Optional[str]] = ContextVar(
+    "retrieval_state", default=None
+)
+
 
 @tool
 def retrieve(query: str, k: int = 6, source_type: Optional[str] = None) -> str:
-    """Search the CT divorce corpus and return passages that may answer the query.
+    """Search the active jurisdiction's legal corpus for passages answering the query.
 
     Args:
         query: A natural-language search query.
@@ -51,7 +59,8 @@ def retrieve(query: str, k: int = 6, source_type: Optional[str] = None) -> str:
         citation as a markdown link: `[citation](url)`. Never invent URLs.
     """
     filter_ = {"source_type": source_type} if source_type else None
-    docs = similarity_search(query, k=k, filter=filter_)
+    collection = collection_for(RETRIEVAL_STATE.get())
+    docs = similarity_search(query, k=k, collection=collection, filter=filter_)
 
     if not docs:
         return "No passages found in the corpus for that query."
