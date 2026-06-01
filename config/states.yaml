@@ -259,6 +259,44 @@ states:
       - ariz       # Arizona Supreme Court
       - arizctapp  # Arizona Court of Appeals
 
-  # New Jersey deferred: the only reachable official source (njleg LIS) is a
-  # JS/Folio-NXT app whose statute *body* text isn't fetchable statically, and
-  # all free mirrors 403. Needs a Playwright crawler (cf. apps/efile/).
+  ma:
+    name: Massachusetts
+    # Mass. Gen. Laws ch. 208 (Divorce), malegislature.gov.
+    fetcher: official
+    official_handler: ma
+    courtlistener_courts:
+      - mass       # Massachusetts Supreme Judicial Court
+      - massappct  # Massachusetts Appeals Court
+
+  in:
+    name: Indiana
+    # Ind. Code Title 31, Art. 15 (Dissolution), iga.in.gov.
+    fetcher: official
+    official_handler: in
+    courtlistener_courts:
+      - ind        # Indiana Supreme Court
+      - indctapp   # Indiana Court of Appeals
+
+  mo:
+    name: Missouri
+    # Mo. Rev. Stat. Chapter 452 (Dissolution), revisor.mo.gov.
+    fetcher: official
+    official_handler: mo
+    courtlistener_courts:
+      - mo         # Supreme Court of Missouri
+      - moctapp    # Missouri Court of Appeals
+
+  md:
+    name: Maryland
+    # Md. Code, Fam. Law Titles 7 (Divorce) & 11 (Alimony), mgaleg.maryland.gov.
+    fetcher: official
+    official_handler: md
+    courtlistener_courts:
+      - md         # Maryland Supreme Court
+      - mdctspecapp  # Appellate Court of Maryland
+
+  # Deferred (need a JS-rendering/Playwright crawler or a licensed feed; the
+  # only reachable official sources are JS-locked and all free mirrors 403):
+  #   NJ — njleg LIS (Folio NXT app)
+  #   TN — T.C.A. is LexisNexis-only (advance.lexis.com SPA)
+  # Skipped (only free source is stale): GA (ga.elaws.us = 2013 snapshot)

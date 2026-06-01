@@ -170,18 +170,24 @@ python -m ingest.main data/raw/public/tx --state tx
   states: IL (`ilga.gov`, 750 ILCS 5), OH (`codes.ohio.gov`, R.C. 3105), PA
   (`legis.state.pa.us`, 23 Pa.C.S.), NC (`ncleg.gov`, G.S. Ch. 50), MI
   (`legislature.mi.gov`, MCL 552), VA (`law.lis.virginia.gov`, Title 20 Ch. 6),
-  WA (`app.leg.wa.gov`, RCW 26.09), AZ (`azleg.gov`, A.R.S. Title 25 Ch. 3).
+  WA (`app.leg.wa.gov`, RCW 26.09), AZ (`azleg.gov`, A.R.S. Title 25 Ch. 3),
+  MA (`malegislature.gov`, M.G.L. ch. 208), IN (`iga.in.gov`, IC Title 31
+  Art. 15), MO (`revisor.mo.gov`, RSMo ch. 452), MD (`mgaleg.maryland.gov`,
+  Fam. Law Titles 7 & 11). Some need quirks — e.g. IN gates its static files
+  on a browser User-Agent (`fetch_html_browser`); MD enumerates via a
+  `GetNext` JSON walk rather than a TOC.
 - **Connecticut** is the special official case: `official_handler: ct_bespoke`
   delegates to `fetch-public` (official `cga.ct.gov` / `jud.ct.gov`) and keeps
   the legacy `ct-divorce` collection (every other state is `<slug>-law`).
-- **Covered states** (16): CT, NY, TX, CA, FL, OR, CO, NV (uniform sources) +
-  IL, OH, PA, NC, MI, VA, WA, AZ (official sites). public.law covers only 7
-  states; the rest need per-state official crawlers, vetted individually:
-  aggregators (Justia/FindLaw) and some official sites bot-block (403), some
-  free mirrors are stale (GA's only free source is a 2013 snapshot — skipped),
-  and some official sites are JS-locked (NJ's njleg LIS — would need a
-  Playwright crawler). When a source fails these checks the state is skipped
-  rather than ingested with bad/stale data.
+- **Covered states** (20): CT, NY, TX, CA, FL, OR, CO, NV (uniform sources) +
+  IL, OH, PA, NC, MI, VA, WA, AZ, MA, IN, MO, MD (official sites). public.law
+  covers only 7 states; the rest need per-state official crawlers, vetted
+  individually. When a source fails the checks the state is skipped rather
+  than ingested with bad data:
+  - **Skipped — stale:** GA (only free source `ga.elaws.us` is a 2013 snapshot).
+  - **Deferred — JS-locked (need Playwright/licensed feed):** NJ (njleg LIS
+    Folio-NXT app), TN (T.C.A. is LexisNexis-only).
+  - Aggregators (Justia/FindLaw) bot-block (403) across the board.
 - **Forms / practice rules** are explicit per-state URL specs in the
   registry, fetched through the same `_fetch_one` path as CT. Many official
   court sites block bots (NY's `nycourts.gov` returns 403) — leave those

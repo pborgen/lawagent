@@ -48,8 +48,23 @@ def public_law_base(subdomain: str, path_prefix: str) -> str:
 
 
 def fetch_html(url: str) -> str:
-    """Download a public.law page as text, reusing fetch_public's SSL fallbacks."""
+    """Download a page as text, reusing fetch_public's SSL fallbacks."""
     return _download(url).decode("utf-8", errors="replace")
+
+
+# A real browser UA + generous timeout, for official sites that gate static
+# files on the User-Agent or serve large single-file codes (e.g. iga.in.gov).
+_BROWSER_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+)
+
+
+def fetch_html_browser(url: str, *, timeout: int = 60) -> str:
+    """Like `fetch_html`, but sends a browser User-Agent (and a longer timeout)."""
+    return _download(url, user_agent=_BROWSER_UA, timeout=timeout).decode(
+        "utf-8", errors="replace"
+    )
 
 
 def check_robots(subdomain: str, path_prefix: str, console: Console) -> None:
@@ -434,5 +449,6 @@ __all__ = [
     "links_matching",
     "fetch_and_write_section",
     "write_statute_section",
+    "fetch_html_browser",
     "USER_AGENT",
 ]

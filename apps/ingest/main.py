@@ -32,7 +32,11 @@ from store import (
 from ingest.src.fetch_public import fetch_public_starter
 from ingest.src.official_az import crawl as crawl_az
 from ingest.src.official_il import crawl as crawl_il
+from ingest.src.official_in import crawl as crawl_in
+from ingest.src.official_ma import crawl as crawl_ma
+from ingest.src.official_md import crawl as crawl_md
 from ingest.src.official_mi import crawl as crawl_mi
+from ingest.src.official_mo import crawl as crawl_mo
 from ingest.src.official_nc import crawl as crawl_nc
 from ingest.src.official_oh import crawl as crawl_oh
 from ingest.src.official_pa import crawl as crawl_pa
@@ -62,6 +66,10 @@ _OFFICIAL_CRAWLERS = {
     "va": crawl_va,
     "wa": crawl_wa,
     "az": crawl_az,
+    "ma": crawl_ma,
+    "in": crawl_in,
+    "mo": crawl_mo,
+    "md": crawl_md,
 }
 
 

@@ -655,10 +655,22 @@ def _trim_trailing_index(text: str) -> str:
     return text[: leader_match.start()].rstrip() + "\n"
 
 
-def _download(url: str) -> bytes:
-    request = Request(url, headers={"User-Agent": USER_AGENT})
+def _download(
+    url: str,
+    *,
+    user_agent: str = USER_AGENT,
+    timeout: int = REQUEST_TIMEOUT_SECONDS,
+) -> bytes:
+    """Download `url` as bytes.
+
+    `user_agent` defaults to the polite corpus-fetcher UA; pass a browser UA
+    for the few official sites that gate static files on it (e.g. iga.in.gov
+    serves a JS shell to non-browser agents). `timeout` can be raised for
+    large single-file fetches.
+    """
+    request = Request(url, headers={"User-Agent": user_agent})
     try:
-        with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+        with urlopen(request, timeout=timeout) as response:
             return response.read()
     except URLError as exc:
         reason = getattr(exc, "reason", None)
@@ -674,19 +686,13 @@ def _download(url: str) -> bytes:
                 relaxed.set_ciphers("DEFAULT@SECLEVEL=0")
             except ssl.SSLError:
                 pass
-            with urlopen(
-                request, timeout=REQUEST_TIMEOUT_SECONDS, context=relaxed,
-            ) as response:
+            with urlopen(request, timeout=timeout, context=relaxed) as response:
                 return response.read()
         if not isinstance(reason, ssl.SSLCertVerificationError):
             raise
 
     insecure_context = ssl._create_unverified_context()
-    with urlopen(
-        request,
-        timeout=REQUEST_TIMEOUT_SECONDS,
-        context=insecure_context,
-    ) as response:
+    with urlopen(request, timeout=timeout, context=insecure_context) as response:
         return response.read()
 
 

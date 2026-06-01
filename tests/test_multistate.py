@@ -44,7 +44,8 @@ class StateRegistryTests(unittest.TestCase):
         self.assertEqual(
             set(available_states()),
             {"ny", "tx", "ca", "fl", "or", "co", "nv", "ct",
-             "il", "oh", "pa", "nc", "mi", "va", "wa", "az"},
+             "il", "oh", "pa", "nc", "mi", "va", "wa", "az",
+             "ma", "in", "mo", "md"},
         )
 
     def test_every_official_state_has_a_registered_handler(self) -> None:
