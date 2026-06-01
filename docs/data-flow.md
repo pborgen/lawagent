@@ -173,14 +173,20 @@ python -m ingest.main data/raw/public/tx --state tx
   WA (`app.leg.wa.gov`, RCW 26.09), AZ (`azleg.gov`, A.R.S. Title 25 Ch. 3),
   MA (`malegislature.gov`, M.G.L. ch. 208), IN (`iga.in.gov`, IC Title 31
   Art. 15), MO (`revisor.mo.gov`, RSMo ch. 452), MD (`mgaleg.maryland.gov`,
-  Fam. Law Titles 7 & 11). Some need quirks — e.g. IN gates its static files
+  Fam. Law Titles 7 & 11), WI (`docs.legis.wisconsin.gov`, ch. 767), MN
+  (`revisor.mn.gov`, ch. 518), SC (`scstatehouse.gov`, Title 20 ch. 3), AL
+  (`alison.legislature.state.al.us`, Title 30 ch. 2), LA (`legis.la.gov`,
+  Civil Code arts. 102-117). Quirks the crawlers handle: IN gates static files
   on a browser User-Agent (`fetch_html_browser`); MD enumerates via a
-  `GetNext` JSON walk rather than a TOC.
+  `GetNext` JSON walk; AL has no server-rendered HTML at all and is fetched
+  from the legislature's **GraphQL** API; LA is a civil-law state, so divorce
+  is in Civil Code *articles* (cited `La. Civ. Code art. N`), not a chapter.
 - **Connecticut** is the special official case: `official_handler: ct_bespoke`
   delegates to `fetch-public` (official `cga.ct.gov` / `jud.ct.gov`) and keeps
   the legacy `ct-divorce` collection (every other state is `<slug>-law`).
-- **Covered states** (20): CT, NY, TX, CA, FL, OR, CO, NV (uniform sources) +
-  IL, OH, PA, NC, MI, VA, WA, AZ, MA, IN, MO, MD (official sites). public.law
+- **Covered states** (25): CT, NY, TX, CA, FL, OR, CO, NV (uniform sources) +
+  IL, OH, PA, NC, MI, VA, WA, AZ, MA, IN, MO, MD, WI, MN, SC, AL, LA (official
+  sites). public.law
   covers only 7 states; the rest need per-state official crawlers, vetted
   individually. When a source fails the checks the state is skipped rather
   than ingested with bad data:

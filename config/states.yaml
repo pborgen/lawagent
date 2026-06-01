@@ -295,6 +295,53 @@ states:
       - md         # Maryland Supreme Court
       - mdctspecapp  # Appellate Court of Maryland
 
+  wi:
+    name: Wisconsin
+    # Wis. Stat. Chapter 767 (Actions Affecting the Family), docs.legis.wisconsin.gov.
+    fetcher: official
+    official_handler: wi
+    courtlistener_courts:
+      - wis        # Wisconsin Supreme Court
+      - wisctapp   # Wisconsin Court of Appeals
+
+  mn:
+    name: Minnesota
+    # Minn. Stat. Chapter 518 (Marriage Dissolution), revisor.mn.gov.
+    fetcher: official
+    official_handler: mn
+    courtlistener_courts:
+      - minn       # Minnesota Supreme Court
+      - minnctapp  # Minnesota Court of Appeals
+
+  sc:
+    name: South Carolina
+    # S.C. Code Title 20, Chapter 3 (Divorce), scstatehouse.gov.
+    fetcher: official
+    official_handler: sc
+    courtlistener_courts:
+      - sc         # South Carolina Supreme Court
+      - scctapp    # South Carolina Court of Appeals
+
+  al:
+    name: Alabama
+    # Ala. Code Title 30, Chapter 2 (Divorce and Alimony), via the Alabama
+    # Legislature GraphQL API (alison.legislature.state.al.us).
+    fetcher: official
+    official_handler: al
+    courtlistener_courts:
+      - ala        # Supreme Court of Alabama
+      - alacrimapp # Alabama Court of Civil Appeals (note: civil appeals)
+
+  la:
+    name: Louisiana
+    # La. Civil Code arts. 102-117 (Divorce; Spousal Support), legis.la.gov.
+    # Civil-law state — divorce is in Code articles, not a statute chapter.
+    fetcher: official
+    official_handler: la
+    courtlistener_courts:
+      - la         # Louisiana Supreme Court
+      - lactapp    # Louisiana Courts of Appeal
+
   # Deferred (need a JS-rendering/Playwright crawler or a licensed feed; the
   # only reachable official sources are JS-locked and all free mirrors 403):
   #   NJ — njleg LIS (Folio NXT app)
