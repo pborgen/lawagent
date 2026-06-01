@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import BrandLogo from "@/components/BrandLogo";
+import ProjectChip from "@/components/ProjectChip";
 import UserMenu from "@/components/UserMenu";
 
 const proofPoints = [
@@ -73,16 +74,20 @@ export default async function Home() {
         <header className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-slate-950/80 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
             <BrandLogo href="/" />
-            <nav className="flex items-center gap-4 text-sm text-slate-300">
-              <a className="hidden transition hover:text-white sm:inline" href="#how-it-works">
+            <nav className="flex items-center gap-3 text-sm text-slate-300 sm:gap-4">
+              <a className="hidden transition hover:text-white lg:inline" href="#how-it-works">
                 How it works
               </a>
-              <a className="hidden transition hover:text-white sm:inline" href="#faq">
+              <a className="hidden transition hover:text-white lg:inline" href="#faq">
                 FAQ
               </a>
+              <Link className="hidden transition hover:text-white sm:inline" href="/projects">
+                Projects
+              </Link>
               <Link className="hidden transition hover:text-white sm:inline" href="/files">
                 Files
               </Link>
+              <ProjectChip />
               <Link
                 className="rounded-full bg-sky-400 px-3 py-1.5 font-semibold text-slate-950 transition hover:bg-sky-300"
                 href="/chat"

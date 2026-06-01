@@ -6,7 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
 
 type FileItem = {
+  /** Full S3 key, e.g. "projects/<uuid>/drafts/motion.pdf". Round-tripped to the backend. */
   key: string;
+  /** Project-relative path, e.g. "drafts/motion.pdf". What we display. */
   name: string;
   size: number;
   last_modified: string;
@@ -14,8 +16,15 @@ type FileItem = {
 
 type CaseFileList = {
   bucket: string;
+  /** S3 prefix the project's files live under, e.g. "projects/<uuid>/". */
   prefix: string;
   items: FileItem[];
+};
+
+type ActiveProject = {
+  id: string;
+  name: string;
+  matter_type: string | null;
 };
 
 type Upload = {
@@ -83,8 +92,11 @@ function partitionAtPath(
 
 export default function FilesClient() {
   const [list, setList] = useState<CaseFileList | null>(null);
+  const [activeProject, setActiveProject] = useState<ActiveProject | null>(null);
+  const [noActiveProject, setNoActiveProject] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -100,9 +112,33 @@ export default function FilesClient() {
   const refresh = useCallback(async () => {
     setError(null);
     try {
-      const res = await fetch("/api/files", { cache: "no-store" });
-      const data = await res.json();
-      if (!res.ok) {
+      // Step 1: which project are we in?
+      const activeRes = await fetch("/api/projects/active", { cache: "no-store" });
+      const activeData = await activeRes.json().catch(() => ({}));
+      const projectId: string | null = activeData.projectId ?? null;
+      if (!projectId) {
+        setActiveProject(null);
+        setNoActiveProject(true);
+        setList(null);
+        return;
+      }
+      setNoActiveProject(false);
+
+      // Step 2: project metadata + file list, in parallel.
+      const [projectRes, filesRes] = await Promise.all([
+        fetch(`/api/projects/${projectId}`, { cache: "no-store" }),
+        fetch("/api/files", { cache: "no-store" }),
+      ]);
+      if (projectRes.ok) {
+        const p = await projectRes.json();
+        setActiveProject({
+          id: p.id,
+          name: p.name,
+          matter_type: p.matter_type ?? null,
+        });
+      }
+      const data = await filesRes.json();
+      if (!filesRes.ok) {
         throw new Error(data.detail ?? data.error ?? "Could not load files.");
       }
       setList(data as CaseFileList);
@@ -114,6 +150,9 @@ export default function FilesClient() {
   }, []);
 
   useEffect(() => {
+    // Fetch-on-mount: refresh() sets loading/error state. Intentional;
+    // exempt from the cascading-render rule.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 
@@ -149,7 +188,7 @@ export default function FilesClient() {
         body: JSON.stringify({
           filename: file.name,
           content_type: file.type || "application/octet-stream",
-          prefix: path,
+          subfolder: path,
         }),
       });
       const presign = await presignRes.json();
@@ -217,6 +256,34 @@ export default function FilesClient() {
     }
   }
 
+  async function handleConvert(item: FileItem) {
+    setBusyKey(item.key);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/files/convert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: item.key }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail ?? data.error ?? "Could not convert this PDF.");
+      }
+      await refresh();
+      const basename = (data.name as string)?.split("/").pop() ?? "the Word file";
+      setNotice(
+        data.scanned
+          ? `Converted to ${basename}. This looks like a scanned PDF, so the Word file contains page images, not editable text.`
+          : `Converted to ${basename}. Open it to edit in Word.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not convert this PDF.");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   async function handleDownload(item: FileItem) {
     setBusyKey(item.key);
     try {
@@ -244,6 +311,9 @@ export default function FilesClient() {
           <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
             <BrandLogo href="/" />
             <nav className="flex items-center gap-4 text-sm text-slate-300">
+              <Link className="hidden transition hover:text-white sm:inline" href="/projects">
+                Projects
+              </Link>
               <Link className="hidden transition hover:text-white sm:inline" href="/chat">
                 Assistant
               </Link>
@@ -259,63 +329,85 @@ export default function FilesClient() {
 
         <section className="space-y-3 py-8 sm:py-12">
           <p className="text-sm font-medium uppercase tracking-[0.24em] text-slate-400">
-            Case files
+            Project files
           </p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Documents for your case
+            {activeProject
+              ? `Documents — ${activeProject.name}`
+              : "Documents"}
           </h1>
           <p className="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">
             Upload PDFs, motions, financial affidavits, and discovery here.
-            Files are stored in your case&rsquo;s private S3 bucket and used by
-            the assistant when you ask it to ground answers in your record.
+            Files are stored under this project&rsquo;s private S3 prefix and
+            used by the assistant when you ask it to ground answers in
+            your record.{" "}
+            <Link href="/projects" className="underline-offset-2 hover:underline">
+              Switch project
+            </Link>
+            .
           </p>
         </section>
 
-        <section
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            handleFiles(e.dataTransfer.files);
-          }}
-          className={`rounded-[2rem] border border-dashed p-6 text-center transition ${
-            dragOver
-              ? "border-sky-300/70 bg-sky-400/10"
-              : "border-white/20 bg-white/5"
-          }`}
-        >
-          <p className="text-sm text-slate-300">
-            Drag files here, or
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="ml-1.5 rounded-full bg-sky-400 px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-sky-300"
+        {noActiveProject ? (
+          <section className="rounded-[2rem] border border-amber-300/30 bg-amber-300/10 p-6 text-sm text-amber-100">
+            <p className="font-semibold text-amber-50">No project selected.</p>
+            <p className="mt-1 text-amber-100/90">
+              Files are stored per-project. Pick or create a project first.
+            </p>
+            <Link
+              href="/projects"
+              className="mt-3 inline-flex items-center rounded-full bg-sky-400 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-sky-300"
             >
-              Choose files
-            </button>
-          </p>
-          <p className="mt-2 text-xs text-slate-400">
-            Uploads land in{" "}
-            <span className="font-mono text-slate-300">
-              {path ? path : "the bucket root"}
-            </span>
-            . Navigate into a folder below to upload there.
-          </p>
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              handleFiles(e.target.files);
-              e.target.value = "";
+              Go to projects
+            </Link>
+          </section>
+        ) : (
+          <section
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
             }}
-          />
-        </section>
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              handleFiles(e.dataTransfer.files);
+            }}
+            className={`rounded-[2rem] border border-dashed p-6 text-center transition ${
+              dragOver
+                ? "border-sky-300/70 bg-sky-400/10"
+                : "border-white/20 bg-white/5"
+            }`}
+          >
+            <p className="text-sm text-slate-300">
+              Drag files here, or
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="ml-1.5 rounded-full bg-sky-400 px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-sky-300"
+              >
+                Choose files
+              </button>
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Uploads land in{" "}
+              <span className="font-mono text-slate-300">
+                {path ? path : "the project root"}
+              </span>
+              . Navigate into a folder below to upload there.
+            </p>
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                handleFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </section>
+        )}
 
         {uploads.length > 0 ? (
           <section className="mt-4 space-y-2">
@@ -364,6 +456,20 @@ export default function FilesClient() {
           </p>
         ) : null}
 
+        {notice ? (
+          <div className="mt-6 flex items-start justify-between gap-3 rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">
+            <span>{notice}</span>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="shrink-0 text-sky-200/70 underline-offset-2 hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
+        {noActiveProject ? null : (
         <section className="mt-8 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-white">Your files</h2>
@@ -464,6 +570,16 @@ export default function FilesClient() {
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
+                      {basename.toLowerCase().endsWith(".pdf") ? (
+                        <button
+                          type="button"
+                          disabled={busyKey === item.key}
+                          onClick={() => handleConvert(item)}
+                          className="rounded-full border border-sky-400/30 px-3 py-1 text-xs font-medium text-sky-100 transition hover:border-sky-400/60 hover:bg-sky-500/10 disabled:opacity-50"
+                        >
+                          {busyKey === item.key ? "Converting…" : "Convert to Word"}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         disabled={busyKey === item.key}
@@ -489,10 +605,11 @@ export default function FilesClient() {
 
           {list?.bucket ? (
             <p className="text-xs text-slate-500">
-              s3://{list.bucket}/{path}
+              s3://{list.bucket}/{list.prefix}{path}
             </p>
           ) : null}
         </section>
+        )}
       </div>
     </main>
   );

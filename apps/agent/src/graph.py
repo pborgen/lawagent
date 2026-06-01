@@ -6,7 +6,7 @@ from langchain.agents import create_agent
 
 from agent.src.prompts import SYSTEM_PROMPT, output_directive
 from agent.src.tools import RETRIEVAL_RECORDER, RetrievedSource, retrieve
-from llm import get_chat_model
+from llm import get_chat_model, usage_callbacks
 
 
 Mode = Literal["short", "memo", "annotate"]
@@ -41,7 +41,13 @@ def ask_with_sources(
     sources: list[RetrievedSource] = []
     token = RETRIEVAL_RECORDER.set(sources)
     try:
-        result = agent.invoke({"messages": [("user", user_message)]})
+        # `usage_callbacks()` meters token usage into the active recorder
+        # (llm.usage.record_usage), set by the API's /chat handler. It's a
+        # no-op when no recorder is active (CLI runs).
+        result = agent.invoke(
+            {"messages": [("user", user_message)]},
+            config={"callbacks": usage_callbacks()},
+        )
     finally:
         RETRIEVAL_RECORDER.reset(token)
 

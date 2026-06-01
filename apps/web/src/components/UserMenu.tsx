@@ -1,5 +1,7 @@
+import Link from "next/link";
+
 import { getAuthConfig } from "@/lib/auth/config";
-import { getCurrentEmail } from "@/lib/auth/dal";
+import { getCurrentEmail, getCurrentUser } from "@/lib/auth/dal";
 
 /**
  * Header strip showing the signed-in email and a sign-out form. Server
@@ -23,12 +25,24 @@ export default async function UserMenu() {
     );
   }
 
+  // Admin link is gated on the backend's is_admin flag. A null result
+  // (backend unreachable, or not an admin) simply hides the link.
+  const user = await getCurrentUser();
+
   return (
     <div className="flex items-center gap-3 text-sm">
       {disabled ? (
         <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-200">
           auth off
         </span>
+      ) : null}
+      {user?.isAdmin ? (
+        <Link
+          href="/admin"
+          className="hidden font-medium text-slate-300 transition hover:text-white sm:inline"
+        >
+          Admin
+        </Link>
       ) : null}
       <span className="hidden text-slate-400 sm:inline">{email}</span>
       {disabled ? null : (

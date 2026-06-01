@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { buildBackendHeaders } from "@/lib/auth/proxy-headers";
+import { readActiveProjectId } from "@/lib/projects/active";
 
 /**
  * Server-side proxy to the Python agent API (`apps/api`).
@@ -45,11 +46,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // Attribute this question's LLM usage to the active project, if any.
+  // The backend re-verifies ownership and ignores an unowned/stale id.
+  const projectId = await readActiveProjectId();
+
   try {
     const res = await fetch(`${AGENT_API_URL}/chat`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ question, mode }),
+      body: JSON.stringify({
+        question,
+        mode,
+        ...(projectId ? { project_id: projectId } : {}),
+      }),
     });
 
     if (!res.ok) {

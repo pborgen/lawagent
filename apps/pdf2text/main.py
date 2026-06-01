@@ -109,12 +109,13 @@ def convert(
             skipped_count += 1
             continue
 
-        console.print(f"Converting [bold]{rel_pdf}[/bold]")
-        result = extract_pdf(pdf)
-
         stem = pdf.stem
         md_path = text_dir / f"{stem}.md"
         json_path = text_dir / f"{stem}.json"
+        rel_md = md_path.relative_to(base)
+        console.print(f"Converting [bold]{rel_pdf}[/bold] → [cyan]{rel_md}[/cyan]")
+        result = extract_pdf(pdf)
+
         md_path.write_text(to_markdown(result), encoding="utf-8")
         sidecar = to_sidecar(result, source_rel=rel_pdf)
         json_path.write_text(json.dumps(sidecar, indent=2), encoding="utf-8")

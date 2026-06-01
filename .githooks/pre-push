@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Pre-push gate (versioned; activated by `make hooks` / `make install`).
+#
+# Gates YOU on the slow CI signals so they can't surprise you 3 minutes
+# later in GitHub Actions: the full `make check`, then `next build`, then
+# the docker image build. docker-smoke self-skips if the daemon is off.
+#
+# In a hurry? Bypass with:  git push --no-verify
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-push: running check-full (check + web build + docker image)…"
+make check-full
+echo "pre-push: ✓ all clear — pushing"

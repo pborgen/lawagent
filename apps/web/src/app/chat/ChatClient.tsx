@@ -104,6 +104,9 @@ export default function ChatClient() {
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4">
           <BrandLogo href="/" showWordmark={false} />
           <div className="flex items-center gap-4 text-sm text-slate-300">
+            <Link href="/projects" className="transition hover:text-white">
+              Projects
+            </Link>
             <Link href="/files" className="transition hover:text-white">
               Files
             </Link>

@@ -223,6 +223,18 @@ def _download_one(
 
     prefix = f"{entry.entry_id}__" if entry.entry_id else ""
 
+    # Sealed-document interstitial (PB § 25-59A(h)): GET returns an HTML
+    # page with a "Proceed" button instead of the document. Re-POST the
+    # form with btnSAProceed=Proceed and use that response instead.
+    if not _looks_like_pdf(body, content_type, cd_header):
+        bypassed = _bypass_sealed_interstitial(
+            context,
+            url=final_url or doc.href,
+            html=body.decode("utf-8", errors="replace"),
+        )
+        if bypassed is not None:
+            body, content_type, cd_header, final_url = bypassed
+
     if _looks_like_pdf(body, content_type, cd_header):
         ext = _suggested_ext(cd_header) or ".pdf"
         filename = f"{prefix}{_safe_filename(doc.label)}{ext}"
@@ -292,6 +304,64 @@ def _download_attachment(
     target = docs_dir / filename
     target.write_bytes(body)
     return str(target.relative_to(base_dir))
+
+
+_SEALED_INTERSTITIAL_MARKERS = ("pnlSealedAffQuestion", "btnSAProceed")
+
+
+def _bypass_sealed_interstitial(
+    context: BrowserContext, *, url: str, html: str
+) -> Optional[tuple[bytes, str, str, Optional[str]]]:
+    """Bypass the 'sealed pursuant to PB § 25-59A(h)' acknowledgement page.
+
+    Some DocumentInquiry URLs return an HTML interstitial with a Proceed
+    button before serving the actual document — common for sealed family
+    matters filings (financial affidavits, etc.) where the requesting
+    party still has access. ASP.NET requires a POST of the original form
+    (with all __VIEWSTATE / __EVENTVALIDATION hidden fields plus
+    btnSAProceed=Proceed) to acknowledge the warning and get the doc.
+
+    Returns the post-bypass response tuple, or None if `html` is not an
+    interstitial we recognize.
+    """
+    if not any(marker in html for marker in _SEALED_INTERSTITIAL_MARKERS):
+        return None
+
+    soup = BeautifulSoup(html, "html.parser")
+    form = soup.find("form")
+    if form is None:
+        return None
+
+    form_data: dict[str, str] = {}
+    for inp in form.find_all("input"):
+        if (inp.get("type") or "").lower() == "hidden":
+            name = inp.get("name")
+            if name:
+                form_data[name] = inp.get("value", "") or ""
+    form_data["btnSAProceed"] = "Proceed"
+
+    action = (form.get("action") or "").strip() or url
+    target = urljoin(url, action)
+
+    console.print("  [yellow]Sealed-document interstitial — clicking Proceed[/yellow]")
+    response = context.request.post(target, form=form_data)
+    try:
+        if not response.ok:
+            raise RuntimeError(
+                f"Sealed-doc bypass POST failed: HTTP {response.status} "
+                f"{response.status_text} for {target}"
+            )
+        body = response.body()
+        headers = response.headers
+        final_url = response.url
+    finally:
+        response.dispose()
+    return (
+        body,
+        (headers.get("content-type", "") or "").lower(),
+        headers.get("content-disposition", "") or "",
+        final_url,
+    )
 
 
 def _request_bytes(

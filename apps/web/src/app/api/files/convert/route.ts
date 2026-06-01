@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildBackendHeaders } from "@/lib/auth/proxy-headers";
 import { readActiveProjectId } from "@/lib/projects/active";
 
+/**
+ * Server-side proxy: convert a project PDF to Word (.docx).
+ *
+ * POST /api/files/convert  body { key }
+ *
+ * Mirrors presign-upload: the browser sends only the source key, and we
+ * inject the active project_id from the cookie so the client stays
+ * project-agnostic. The backend writes the .docx into the same project
+ * prefix and returns its key/name plus a `scanned` flag.
+ */
 const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://127.0.0.1:8000";
 
 export async function POST(request: NextRequest) {
@@ -26,12 +36,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // The browser sends { filename, content_type, subfolder }. We inject
-  // project_id from the cookie so the client can stay project-agnostic.
   const forwarded = { ...body, project_id: projectId };
 
   try {
-    const res = await fetch(`${AGENT_API_URL}/files/presign-upload`, {
+    const res = await fetch(`${AGENT_API_URL}/files/convert`, {
       method: "POST",
       headers,
       body: JSON.stringify(forwarded),

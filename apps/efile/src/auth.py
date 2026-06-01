@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator
 
 from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 

@@ -9,12 +9,19 @@ through this package.
 
 from llm.chat import build_chat_model, get_chat_model
 from llm.embeddings import build_embeddings, get_embeddings
+from llm.pricing import cost_usd
 from llm.profiles import (
     Profile,
     active_collection,
     active_profile_name,
     get_active_profile,
     load_profiles,
+)
+from llm.usage import (
+    UsageEvent,
+    record_embedding,
+    record_usage,
+    usage_callbacks,
 )
 
 __all__ = [
@@ -27,4 +34,9 @@ __all__ = [
     "active_profile_name",
     "active_collection",
     "load_profiles",
+    "cost_usd",
+    "UsageEvent",
+    "record_usage",
+    "record_embedding",
+    "usage_callbacks",
 ]
