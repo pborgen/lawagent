@@ -222,3 +222,43 @@ states:
     courtlistener_courts:
       - nc         # North Carolina Supreme Court
       - ncctapp    # North Carolina Court of Appeals
+
+  mi:
+    name: Michigan
+    # Mich. Comp. Laws Chapter 552 (Divorce), legislature.mi.gov.
+    fetcher: official
+    official_handler: mi
+    courtlistener_courts:
+      - mich       # Michigan Supreme Court
+      - michctapp  # Michigan Court of Appeals
+
+  va:
+    name: Virginia
+    # Va. Code Title 20, Chapter 6 (Divorce), law.lis.virginia.gov.
+    fetcher: official
+    official_handler: va
+    courtlistener_courts:
+      - va         # Supreme Court of Virginia
+      - vactapp    # Court of Appeals of Virginia
+
+  wa:
+    name: Washington
+    # Wash. Rev. Code Chapter 26.09 (Dissolution), app.leg.wa.gov.
+    fetcher: official
+    official_handler: wa
+    courtlistener_courts:
+      - wash       # Washington Supreme Court
+      - washctapp  # Washington Court of Appeals
+
+  az:
+    name: Arizona
+    # Ariz. Rev. Stat. Title 25, Chapter 3 (Dissolution), azleg.gov.
+    fetcher: official
+    official_handler: az
+    courtlistener_courts:
+      - ariz       # Arizona Supreme Court
+      - arizctapp  # Arizona Court of Appeals
+
+  # New Jersey deferred: the only reachable official source (njleg LIS) is a
+  # JS/Folio-NXT app whose statute *body* text isn't fetchable statically, and
+  # all free mirrors 403. Needs a Playwright crawler (cf. apps/efile/).

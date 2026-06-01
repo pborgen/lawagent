@@ -168,15 +168,20 @@ python -m ingest.main data/raw/public/tx --state tx
   `public_law.write_statute_section` (the single frontmatter sink) and
   `fetch_html`, so only the navigation/extraction differs. Current official
   states: IL (`ilga.gov`, 750 ILCS 5), OH (`codes.ohio.gov`, R.C. 3105), PA
-  (`legis.state.pa.us`, 23 Pa.C.S.), NC (`ncleg.gov`, G.S. Ch. 50).
+  (`legis.state.pa.us`, 23 Pa.C.S.), NC (`ncleg.gov`, G.S. Ch. 50), MI
+  (`legislature.mi.gov`, MCL 552), VA (`law.lis.virginia.gov`, Title 20 Ch. 6),
+  WA (`app.leg.wa.gov`, RCW 26.09), AZ (`azleg.gov`, A.R.S. Title 25 Ch. 3).
 - **Connecticut** is the special official case: `official_handler: ct_bespoke`
   delegates to `fetch-public` (official `cga.ct.gov` / `jud.ct.gov`) and keeps
   the legacy `ct-divorce` collection (every other state is `<slug>-law`).
-- **Covered states** (12): CT, NY, TX, CA, FL, OR, CO, NV (uniform sources) +
-  IL, OH, PA, NC (official sites). public.law covers only 7 states; the rest
-  need per-state official crawlers (most aggregators — Justia/FindLaw — and
-  some official sites bot-block with 403, and some free mirrors are stale, so
-  each state is vetted individually).
+- **Covered states** (16): CT, NY, TX, CA, FL, OR, CO, NV (uniform sources) +
+  IL, OH, PA, NC, MI, VA, WA, AZ (official sites). public.law covers only 7
+  states; the rest need per-state official crawlers, vetted individually:
+  aggregators (Justia/FindLaw) and some official sites bot-block (403), some
+  free mirrors are stale (GA's only free source is a 2013 snapshot — skipped),
+  and some official sites are JS-locked (NJ's njleg LIS — would need a
+  Playwright crawler). When a source fails these checks the state is skipped
+  rather than ingested with bad/stale data.
 - **Forms / practice rules** are explicit per-state URL specs in the
   registry, fetched through the same `_fetch_one` path as CT. Many official
   court sites block bots (NY's `nycourts.gov` returns 403) — leave those

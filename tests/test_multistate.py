@@ -44,17 +44,21 @@ class StateRegistryTests(unittest.TestCase):
         self.assertEqual(
             set(available_states()),
             {"ny", "tx", "ca", "fl", "or", "co", "nv", "ct",
-             "il", "oh", "pa", "nc"},
+             "il", "oh", "pa", "nc", "mi", "va", "wa", "az"},
         )
 
-    def test_official_states_have_registered_handlers(self) -> None:
-        # Every fetcher="official" state must name a handler wired in main.py.
+    def test_every_official_state_has_a_registered_handler(self) -> None:
+        # Every fetcher="official" state must name a handler wired in main.py
+        # (ct_bespoke is handled by the fetch-public delegation, not the map).
         from ingest.main import _OFFICIAL_CRAWLERS
-        for slug in ("il", "oh", "pa", "nc"):
+        for slug in available_states():
             st = get_state(slug)
-            self.assertEqual(st.fetcher, "official", slug)
+            if st.fetcher != "official":
+                continue
+            if st.official_handler == "ct_bespoke":
+                self.assertEqual(slug, "ct")
+                continue
             self.assertIn(st.official_handler, _OFFICIAL_CRAWLERS, slug)
-            # official states get their own <slug>-law collection
             self.assertTrue(collection_for(slug).startswith(f"{slug}-law__"), slug)
 
     def test_layouts_and_schemes(self) -> None:

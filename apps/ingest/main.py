@@ -30,10 +30,14 @@ from store import (
     write_chunks,
 )
 from ingest.src.fetch_public import fetch_public_starter
+from ingest.src.official_az import crawl as crawl_az
 from ingest.src.official_il import crawl as crawl_il
+from ingest.src.official_mi import crawl as crawl_mi
 from ingest.src.official_nc import crawl as crawl_nc
 from ingest.src.official_oh import crawl as crawl_oh
 from ingest.src.official_pa import crawl as crawl_pa
+from ingest.src.official_va import crawl as crawl_va
+from ingest.src.official_wa import crawl as crawl_wa
 from ingest.src.public_law import crawl_public_law, fetch_specs
 from ingest.src.public_law_flat import crawl_public_law_flat
 from ingest.src.public_law_tx import crawl_public_law_tx
@@ -54,6 +58,10 @@ _OFFICIAL_CRAWLERS = {
     "oh": crawl_oh,
     "pa": crawl_pa,
     "nc": crawl_nc,
+    "mi": crawl_mi,
+    "va": crawl_va,
+    "wa": crawl_wa,
+    "az": crawl_az,
 }
 
 
