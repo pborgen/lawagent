@@ -471,6 +471,39 @@ states:
     courtlistener_courts:
       - sd         # South Dakota Supreme Court
 
+  nd:
+    name: North Dakota
+    # N.D. Cent. Code Title 14, Ch. 14-05 (Divorce), ndlegis.gov (chapter PDF).
+    fetcher: official
+    official_handler: nd
+    courtlistener_courts:
+      - nd         # North Dakota Supreme Court
+
+  ak:
+    name: Alaska
+    # Alaska Stat. Chapter 25.24 (Divorce and Dissolution), akleg.gov.
+    fetcher: official
+    official_handler: ak
+    courtlistener_courts:
+      - alaska     # Alaska Supreme Court
+      - alaskactapp  # Alaska Court of Appeals
+
+  vt:
+    name: Vermont
+    # Vt. Stat. Title 15, Ch. 11 (Annulment and Divorce), legislature.vermont.gov.
+    fetcher: official
+    official_handler: vt
+    courtlistener_courts:
+      - vt         # Vermont Supreme Court
+
+  wy:
+    name: Wyoming
+    # Wyo. Stat. Title 20, Ch. 2 (Divorce and Alimony), wyoleg.gov (title PDF).
+    fetcher: official
+    official_handler: wy
+    courtlistener_courts:
+      - wyo        # Wyoming Supreme Court
+
   # Deferred (need a JS-rendering/Playwright crawler or a licensed feed; the
   # only reachable official sources are JS-locked and all free mirrors 403):
   #   NJ — njleg LIS (Folio NXT app)

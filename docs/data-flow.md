@@ -166,33 +166,26 @@ python -m ingest.main data/raw/public/tx --state tx
   dispatched by `_OFFICIAL_CRAWLERS` in `apps/ingest/main.py`). Each official
   legislature site is unique, so each is its own module — but they all reuse
   `public_law.write_statute_section` (the single frontmatter sink) and
-  `fetch_html`, so only the navigation/extraction differs. Current official
-  states: IL (`ilga.gov`, 750 ILCS 5), OH (`codes.ohio.gov`, R.C. 3105), PA
-  (`legis.state.pa.us`, 23 Pa.C.S.), NC (`ncleg.gov`, G.S. Ch. 50), MI
-  (`legislature.mi.gov`, MCL 552), VA (`law.lis.virginia.gov`, Title 20 Ch. 6),
-  WA (`app.leg.wa.gov`, RCW 26.09), AZ (`azleg.gov`, A.R.S. Title 25 Ch. 3),
-  MA (`malegislature.gov`, M.G.L. ch. 208), IN (`iga.in.gov`, IC Title 31
-  Art. 15), MO (`revisor.mo.gov`, RSMo ch. 452), MD (`mgaleg.maryland.gov`,
-  Fam. Law Titles 7 & 11), WI (`docs.legis.wisconsin.gov`, ch. 767), MN
-  (`revisor.mn.gov`, ch. 518), SC (`scstatehouse.gov`, Title 20 ch. 3), AL
-  (`alison.legislature.state.al.us`, Title 30 ch. 2), LA (`legis.la.gov`,
-  Civil Code arts. 102-117). Quirks the crawlers handle: IN gates static files
-  on a browser User-Agent (`fetch_html_browser`); MD enumerates via a
-  `GetNext` JSON walk; AL has no server-rendered HTML at all and is fetched
-  from the legislature's **GraphQL** API; LA is a civil-law state, so divorce
-  is in Civil Code *articles* (cited `La. Civ. Code art. N`), not a chapter.
+  `fetch_html`, so only the navigation/extraction differs (each state's
+  divorce statute target is noted in `config/states.yaml`). Most are static
+  HTML; the crawlers also handle PDF sources (`fetch_pdf_text` — KY, IA, NM,
+  ND, WY), browser-UA-gated static files (`fetch_html_browser` — IN), latin-1
+  encodings (OK, AK), `GetNext`/anchor enumeration (MD), and sites with **no
+  server-rendered HTML** that expose a JSON or GraphQL API instead (SD, AL).
+  LA is a civil-law state, so its divorce law is in Civil Code *articles*
+  (cited `La. Civ. Code art. N`), not a statute chapter.
 - **Connecticut** is the special official case: `official_handler: ct_bespoke`
   delegates to `fetch-public` (official `cga.ct.gov` / `jud.ct.gov`) and keeps
   the legacy `ct-divorce` collection (every other state is `<slug>-law`).
-- **Covered states** (25): CT, NY, TX, CA, FL, OR, CO, NV (uniform sources) +
-  IL, OH, PA, NC, MI, VA, WA, AZ, MA, IN, MO, MD, WI, MN, SC, AL, LA (official
-  sites). public.law
-  covers only 7 states; the rest need per-state official crawlers, vetted
-  individually. When a source fails the checks the state is skipped rather
-  than ingested with bad data:
-  - **Skipped — stale:** GA (only free source `ga.elaws.us` is a 2013 snapshot).
-  - **Deferred — JS-locked (need Playwright/licensed feed):** NJ (njleg LIS
-    Folio-NXT app), TN (T.C.A. is LexisNexis-only).
+- **Coverage: 44 of 50 states.** 7 from public.law (CT-adjacent uniform
+  source: NY, TX, CA, FL, OR, CO, NV), CT via `fetch-public`, and 36 more via
+  bespoke official-site crawlers. When a source fails the checks the state is
+  skipped rather than ingested with bad data — **6 remain unsupported**:
+  - **Skipped — no reachable current source** (official is LexisNexis-only;
+    free mirrors 403 or stale): GA (`ga.elaws.us` is a 2013 snapshot), AR, MS.
+  - **Deferred — needs a JS-rendering/Playwright crawler:** NJ (njleg LIS
+    Folio-NXT app), TN (T.C.A. is LexisNexis SPA), UT (divorce recodified to
+    Title 81; HTML JS-gated, PDFs version-stamped).
   - Aggregators (Justia/FindLaw) bot-block (403) across the board.
 - **Forms / practice rules** are explicit per-state URL specs in the
   registry, fetched through the same `_fetch_one` path as CT. Many official

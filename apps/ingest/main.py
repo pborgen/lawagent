@@ -62,6 +62,10 @@ from ingest.src.official_mt import crawl as crawl_mt
 from ingest.src.official_nh import crawl as crawl_nh
 from ingest.src.official_ri import crawl as crawl_ri
 from ingest.src.official_sd import crawl as crawl_sd
+from ingest.src.official_ak import crawl as crawl_ak
+from ingest.src.official_nd import crawl as crawl_nd
+from ingest.src.official_vt import crawl as crawl_vt
+from ingest.src.official_wy import crawl as crawl_wy
 from ingest.src.public_law import crawl_public_law, fetch_specs
 from ingest.src.public_law_flat import crawl_public_law_flat
 from ingest.src.public_law_tx import crawl_public_law_tx
@@ -110,6 +114,10 @@ _OFFICIAL_CRAWLERS = {
     "ri": crawl_ri,
     "de": crawl_de,
     "sd": crawl_sd,
+    "nd": crawl_nd,
+    "ak": crawl_ak,
+    "vt": crawl_vt,
+    "wy": crawl_wy,
 }
 
 
