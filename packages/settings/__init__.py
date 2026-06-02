@@ -142,6 +142,26 @@ class Settings(BaseSettings):
     admin_emails: str = Field(default="", alias="LAWAGENT_ADMIN_EMAILS")
     auth_disabled: bool = Field(default=False, alias="LAWAGENT_AUTH_DISABLED")
 
+    # --- Bedrock Guardrails (output validation) ---------------------------
+    # The agent runs its answer (and the passages it retrieved) through an
+    # Amazon Bedrock guardrail: contextual grounding (the anti-hallucination
+    # check), denied topics, content/prompt-attack filters, and PII masking.
+    # See packages/llm/guardrails.py. Provisioned by infra/terraform/
+    # guardrails.tf, which wires these env vars onto the App Runner service.
+    #
+    # Gated entirely on the ID: unset → guardrails are a no-op pass-through,
+    # so local dev, CI, and `make check` need no AWS creds. boto3 reads the
+    # region from AWS_REGION unless bedrock_guardrail_region overrides it.
+    bedrock_guardrail_id: Optional[str] = Field(
+        default=None, alias="LAWAGENT_BEDROCK_GUARDRAIL_ID"
+    )
+    bedrock_guardrail_version: str = Field(
+        default="DRAFT", alias="LAWAGENT_BEDROCK_GUARDRAIL_VERSION"
+    )
+    bedrock_guardrail_region: Optional[str] = Field(
+        default=None, alias="LAWAGENT_BEDROCK_GUARDRAIL_REGION"
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _strip_inline_comments(cls, data: Any) -> Any:
@@ -233,6 +253,15 @@ class Settings(BaseSettings):
             a.strip() for a in self.cognito_extra_audiences.split(",") if a.strip()
         ]
         return [client_id, *extra]
+
+    def guardrail_enabled(self) -> bool:
+        """True when a Bedrock guardrail is configured.
+
+        The whole guardrails layer keys off this: with no ID set (local dev,
+        CI, `make check`), `packages/llm/guardrails` is a no-op pass-through
+        and never touches AWS.
+        """
+        return bool(self.bedrock_guardrail_id)
 
     def require_efile_credentials(self) -> tuple[str, str]:
         if not self.efile_username or not self.efile_password:

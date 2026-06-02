@@ -6,12 +6,13 @@ from langchain.agents import create_agent
 
 from agent.src.prompts import SYSTEM_PROMPT, output_directive
 from agent.src.tools import (
+    GROUNDING_RECORDER,
     RETRIEVAL_RECORDER,
     RETRIEVAL_STATE,
     RetrievedSource,
     retrieve,
 )
-from llm import get_chat_model, usage_callbacks
+from llm import get_chat_model, guard_input, guard_output, usage_callbacks
 
 
 Mode = Literal["short", "memo", "annotate"]
@@ -43,11 +44,20 @@ def ask_with_sources(
     `state` selects the jurisdiction's vector collection (a slug like "ny");
     `None` retrieves from Connecticut. The caller sets it — not the LLM.
     """
+    # Bedrock guardrail on the *question* first: catch prompt-injection /
+    # off-scope asks before we spend a model call. No-op unless a guardrail
+    # is configured (LAWAGENT_BEDROCK_GUARDRAIL_ID).
+    gin = guard_input(question)
+    if gin.blocked:
+        return gin.text, []
+
     agent = build_agent()
     user_message = f"{output_directive(mode)}\n\nQuestion: {question}"
 
     sources: list[RetrievedSource] = []
+    grounding: list[str] = []
     token = RETRIEVAL_RECORDER.set(sources)
+    grounding_token = GROUNDING_RECORDER.set(grounding)
     state_token = RETRIEVAL_STATE.set(state)
     try:
         # `usage_callbacks()` meters token usage into the active recorder
@@ -59,10 +69,18 @@ def ask_with_sources(
         )
     finally:
         RETRIEVAL_RECORDER.reset(token)
+        GROUNDING_RECORDER.reset(grounding_token)
         RETRIEVAL_STATE.reset(state_token)
 
     final = result["messages"][-1]
     answer = final.content if hasattr(final, "content") else str(final)
+
+    # Bedrock contextual-grounding guardrail: verify the answer traces to the
+    # passages actually retrieved (the anti-hallucination check), and mask any
+    # PII. `gout.text` is the answer unchanged, a PII-masked version, or a
+    # refusal. No-op unless a guardrail is configured.
+    gout = guard_output(question, answer, "\n\n---\n\n".join(grounding))
+    answer = gout.text
 
     # Dedupe (citation, url) while keeping the agent's retrieval order.
     seen: set[tuple[str, str]] = set()

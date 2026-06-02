@@ -39,6 +39,16 @@ RETRIEVAL_STATE: ContextVar[Optional[str]] = ContextVar(
     "retrieval_state", default=None
 )
 
+# Per-request collector for the *raw passage text* the agent retrieved.
+# Distinct from RETRIEVAL_RECORDER (which holds citation/url for the UI's
+# Sources panel): this is the verbatim chunk text, fed to the Bedrock
+# contextual-grounding guardrail as the ground truth the answer must trace
+# to (see llm.guardrails.guard_output). A ContextVar for the same
+# concurrency reason — never shared across requests.
+GROUNDING_RECORDER: ContextVar[Optional[list[str]]] = ContextVar(
+    "grounding_recorder", default=None
+)
+
 
 @tool
 def retrieve(query: str, k: int = 6, source_type: Optional[str] = None) -> str:
@@ -66,6 +76,7 @@ def retrieve(query: str, k: int = 6, source_type: Optional[str] = None) -> str:
         return "No passages found in the corpus for that query."
 
     recorder = RETRIEVAL_RECORDER.get()
+    grounding = GROUNDING_RECORDER.get()
 
     out = []
     for i, d in enumerate(docs, start=1):
@@ -81,6 +92,10 @@ def retrieve(query: str, k: int = 6, source_type: Optional[str] = None) -> str:
                     citation=citation, url=source_url, source_type=stype
                 )
             )
+
+        # Record the verbatim passage as grounding truth for the guardrail.
+        if grounding is not None:
+            grounding.append(f"{citation}\n{d.page_content}")
 
         # Show URL to the LLM so it can produce `[citation](url)` markdown.
         url_line = f"\nURL: {source_url}" if source_url else ""

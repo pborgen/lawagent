@@ -9,6 +9,7 @@ through this package.
 
 from llm.chat import build_chat_model, get_chat_model
 from llm.embeddings import build_embeddings, get_embeddings
+from llm.guardrails import GuardrailOutcome, guard_input, guard_output
 from llm.pricing import cost_usd
 from llm.profiles import (
     Profile,
@@ -30,6 +31,9 @@ __all__ = [
     "build_chat_model",
     "get_embeddings",
     "build_embeddings",
+    "guard_input",
+    "guard_output",
+    "GuardrailOutcome",
     "Profile",
     "get_active_profile",
     "active_profile_name",

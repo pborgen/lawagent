@@ -52,6 +52,15 @@ data "aws_iam_policy_document" "apprunner_instance" {
     resources = ["*"]
   }
 
+  # Run the answer (and the retrieved passages) through the Bedrock
+  # guardrail — contextual grounding, denied topics, content filters, PII
+  # masking. Scoped to this account's guardrail (see guardrails.tf).
+  statement {
+    sid       = "BedrockApplyGuardrail"
+    actions   = ["bedrock:ApplyGuardrail"]
+    resources = [aws_bedrock_guardrail.this.guardrail_arn]
+  }
+
   # Case docs in S3 — list the bucket, read/write objects.
   statement {
     sid       = "S3Bucket"
@@ -127,6 +136,11 @@ resource "aws_apprunner_service" "api" {
           COGNITO_USER_POOL_ID   = aws_cognito_user_pool.this.id
           COGNITO_CLIENT_ID      = aws_cognito_user_pool_client.web.id
           COGNITO_ALLOWED_EMAILS = var.cognito_allowed_emails
+          # Bedrock guardrail: validate every answer (grounding, denied
+          # topics, content filters, PII masking). The agent no-ops these
+          # checks unless the ID is set, so this is what turns them on.
+          LAWAGENT_BEDROCK_GUARDRAIL_ID      = aws_bedrock_guardrail.this.guardrail_id
+          LAWAGENT_BEDROCK_GUARDRAIL_VERSION = aws_bedrock_guardrail_version.this.version
         }
       }
     }
