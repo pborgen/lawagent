@@ -81,6 +81,9 @@ export default async function Home() {
               <a className="hidden transition hover:text-white lg:inline" href="#faq">
                 FAQ
               </a>
+              <Link className="hidden transition hover:text-white sm:inline" href="/process">
+                The process
+              </Link>
               <Link className="hidden transition hover:text-white sm:inline" href="/projects">
                 Projects
               </Link>

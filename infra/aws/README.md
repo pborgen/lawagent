@@ -182,9 +182,11 @@ much faster.
   Serverless v2 (pgvector-enabled) or RDS Postgres in the same region
   and put its URL in `LAWAGENT_PG_URL`. App Runner needs a VPC
   connector to reach a private RDS instance.
-- **Frontend**: `apps/web` (Next.js) isn't deployed by this pipeline.
-  Easiest target is Amplify Hosting or Vercel; or build a second
-  Dockerfile + App Runner service.
+- **Frontend**: `apps/web` (Next.js) now ships as a second App Runner
+  service — see `infra/terraform/web.tf` and `apps/web/Dockerfile`. The
+  `deploy.yml` `build-and-deploy-web` job builds and rolls it out. It
+  needs a two-pass first apply to learn its own URL for the Cognito
+  redirect (see `var.web_public_url`).
 - **IaC**: this is all click-ops / one-shot CLI. Once it's stable,
   port to CDK (Python — fits the monorepo) or Terraform.
 - **Staging**: single environment. Add a `develop` branch + a second

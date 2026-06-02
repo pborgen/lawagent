@@ -41,6 +41,16 @@ lawagent_s3_uri  = "s3://your-lawagent-bucket/case/"
 # image_identifier drift.
 image_tag = "latest"
 
+# --- Web frontend (Next.js on a second App Runner service) -----------
+# Same image_tag story as the API. web_public_url is filled in on the
+# SECOND apply (it doesn't exist until the service is first created):
+#   1. apply with web_public_url = "" → grab `terraform output web_service_url`
+#   2. set web_public_url to that, ALSO add "<url>/auth/callback" to
+#      cognito_callback_urls and "<url>" to cognito_logout_urls, apply again.
+# web_project_name = "lawagent-web"
+# web_image_tag    = "latest"
+web_public_url = ""
+
 # --- Cognito (Google federation) -------------------------------------
 # 1. In Google Cloud Console, create an OAuth 2.0 Web client.
 # 2. `terraform apply` once with placeholder google_* values, grab the

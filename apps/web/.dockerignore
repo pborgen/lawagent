@@ -1,0 +1,17 @@
+# Keep the build context small and reproducible: never ship the host's
+# installed deps or prior build output — the image rebuilds both.
+node_modules
+.next
+npm-debug.log*
+
+# Local secrets/config — runtime env comes from App Runner, not these.
+.env
+.env.local
+.env.*.local
+
+# Editor / VCS noise
+.git
+.gitignore
+*.md
+.DS_Store
+tsconfig.tsbuildinfo

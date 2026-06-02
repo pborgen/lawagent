@@ -46,6 +46,23 @@ variable "lawagent_s3_uri" {
   type        = string
 }
 
+# --- Bedrock guardrail thresholds ------------------------------------
+# Contextual-grounding confidence floors, 0.00–0.99. An answer scoring
+# below the threshold is BLOCKED. Higher = stricter (fewer ungrounded
+# answers slip through, but more borderline-but-valid answers get refused).
+
+variable "guardrail_grounding_threshold" {
+  description = "Min grounding confidence (answer supported by retrieved passages). Below this → blocked."
+  type        = number
+  default     = 0.75
+}
+
+variable "guardrail_relevance_threshold" {
+  description = "Min relevance confidence (answer addresses the question). Below this → blocked."
+  type        = number
+  default     = 0.5
+}
+
 variable "lawagent_pg_url" {
   description = "DEPRECATED — the connection URL is now constructed from the RDS instance in rds.tf (local.pg_url). Set db_password instead. Kept only so existing tfvars don't error; safe to delete."
   type        = string
@@ -57,6 +74,39 @@ variable "image_tag" {
   description = "ECR image tag App Runner should run on initial create. Use \"latest\" for first apply, then let the GitHub deploy workflow roll out specific SHAs."
   type        = string
   default     = "latest"
+}
+
+# --- Web frontend (Next.js on a second App Runner service) -----------
+
+variable "web_project_name" {
+  description = "Short name / prefix for the web frontend's resources (ECR repo, App Runner service, IAM role, secrets)."
+  type        = string
+  default     = "lawagent-web"
+}
+
+variable "web_image_tag" {
+  description = "ECR image tag the web App Runner service runs on initial create. Same story as image_tag — \"latest\" for the first apply, then CI rolls out SHAs."
+  type        = string
+  default     = "latest"
+}
+
+variable "web_public_url" {
+  description = <<-EOT
+    Public origin of the deployed web app, e.g.
+    "https://abc123.us-east-1.awsapprunner.com" (no trailing slash).
+    Used to build COGNITO_REDIRECT_URI (/auth/callback) and the logout
+    URL injected into the web service.
+
+    CHICKEN-AND-EGG: App Runner mints this URL only after the service is
+    created, and a resource can't reference its own computed URL. So the
+    bootstrap is two passes:
+      1. Leave this "" and apply — the service comes up healthy (the
+         landing page needs no auth env), but sign-in is not wired yet.
+      2. Read `terraform output web_service_url`, set it here AND add it
+         to cognito_callback_urls / cognito_logout_urls, then apply again.
+  EOT
+  type        = string
+  default     = ""
 }
 
 # --- Cognito ---------------------------------------------------------
@@ -96,6 +146,21 @@ variable "cognito_logout_urls" {
   description = "Allowed post-sign-out redirect URIs for the Next.js web client."
   type        = list(string)
   default     = ["http://localhost:3000"]
+}
+
+variable "cognito_mobile_callback_urls" {
+  description = <<-EOT
+    Allowed OAuth redirect URIs for the native mobile client (apps/mobile).
+    Custom URI scheme captured by the app as a deep link, not a web URL.
+  EOT
+  type        = list(string)
+  default     = ["lawagent://callback"]
+}
+
+variable "cognito_mobile_logout_urls" {
+  description = "Allowed post-sign-out redirect URIs for the native mobile client."
+  type        = list(string)
+  default     = ["lawagent://callback"]
 }
 
 variable "cognito_allowed_emails" {

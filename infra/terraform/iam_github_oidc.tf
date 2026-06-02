@@ -65,7 +65,10 @@ data "aws_iam_policy_document" "github_deploy" {
       "ecr:PutImage",
       "ecr:UploadLayerPart",
     ]
-    resources = [aws_ecr_repository.api.arn]
+    resources = [
+      aws_ecr_repository.api.arn,
+      aws_ecr_repository.web.arn,
+    ]
   }
 
   statement {
@@ -74,7 +77,10 @@ data "aws_iam_policy_document" "github_deploy" {
       "apprunner:StartDeployment",
       "apprunner:DescribeService",
     ]
-    resources = [aws_apprunner_service.api.arn]
+    resources = [
+      aws_apprunner_service.api.arn,
+      aws_apprunner_service.web.arn,
+    ]
   }
 }
 
