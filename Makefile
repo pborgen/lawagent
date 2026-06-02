@@ -9,9 +9,11 @@
 #     DB / embedding keys are absent. Use `make db-up` to exercise them.
 
 WEB := apps/web
+MOBILE := apps/mobile
 
 .DEFAULT_GOAL := help
 .PHONY: help check check-full py-lint py-test web-types web-lint web-build \
+        mobile-types mobile-lint mobile-check mobile-start \
         docker-smoke fmt fmt-check install hooks db-up db-down clean
 
 help: ## Show this help
@@ -52,6 +54,22 @@ web-lint: ## ESLint over the web app
 web-build: ## next build smoke (slower; mirrors CI). Needs no real creds.
 	cd $(WEB) && AUTH_DISABLED=true SESSION_SECRET=make-only-placeholder npx next build
 
+## ---- mobile (apps/mobile) -------------------------------------------
+# The Expo app is its own npm project. Kept OUT of `make check` (RN tooling
+# is heavier and the gate must stay ~5s/offline); run mobile-check on its own
+# or in a dedicated CI job.
+
+mobile-types: ## TypeScript typecheck the Expo app
+	cd $(MOBILE) && npx tsc --noEmit
+
+mobile-lint: ## ESLint over the Expo app
+	cd $(MOBILE) && npm run lint
+
+mobile-check: mobile-lint mobile-types ## Lint + typecheck the Expo app
+
+mobile-start: ## Boot the Expo app in the iOS simulator
+	cd $(MOBILE) && npx expo start --ios
+
 ## ---- docker --------------------------------------------------------
 
 docker-smoke: ## Build the deploy image (no push) — mirrors CI's docker job
@@ -71,9 +89,10 @@ fmt-check: ## Report files ruff format would change
 
 ## ---- setup / infra --------------------------------------------------
 
-install: hooks ## Install Python + web deps (uv sync --group local, npm ci) + git hooks
+install: hooks ## Install Python + web + mobile deps (uv sync, npm ci) + git hooks
 	uv sync --group local
 	cd $(WEB) && npm ci
+	cd $(MOBILE) && npm install
 
 hooks: ## Activate the versioned git hooks in .githooks/ (pre-push gate)
 	git config core.hooksPath .githooks

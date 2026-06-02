@@ -110,3 +110,42 @@ resource "aws_cognito_user_pool_client" "web" {
 
   prevent_user_existence_errors = "ENABLED"
 }
+
+# The native mobile app's OIDC client (apps/mobile, Expo/React Native).
+# A public client: `generate_secret = false`, because a secret can't be
+# protected on a phone. Security comes from PKCE (the app generates a
+# per-flow code verifier) plus the custom-scheme redirect. Tokens it mints
+# carry this client's id as `aud`, so the API must list it in
+# COGNITO_EXTRA_AUDIENCES to accept them (see apps/api/auth.py).
+resource "aws_cognito_user_pool_client" "mobile" {
+  name         = "${var.project_name}-mobile"
+  user_pool_id = aws_cognito_user_pool.this.id
+
+  generate_secret                      = false
+  allowed_oauth_flows                  = ["code"]
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_scopes                 = ["openid", "email", "profile"]
+
+  supported_identity_providers = [aws_cognito_identity_provider.google.provider_name]
+
+  # Custom URI scheme (e.g. lawagent://callback) — the app captures this
+  # redirect via a deep link, not a web URL.
+  callback_urls = var.cognito_mobile_callback_urls
+  logout_urls   = var.cognito_mobile_logout_urls
+
+  explicit_auth_flows = [
+    "ALLOW_REFRESH_TOKEN_AUTH",
+  ]
+
+  id_token_validity      = 60 # minutes
+  access_token_validity  = 60 # minutes
+  refresh_token_validity = 30 # days
+
+  token_validity_units {
+    id_token      = "minutes"
+    access_token  = "minutes"
+    refresh_token = "days"
+  }
+
+  prevent_user_existence_errors = "ENABLED"
+}

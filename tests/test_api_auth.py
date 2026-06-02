@@ -114,6 +114,32 @@ def test_unverified_email_returns_403(monkeypatch):
     assert r.status_code == 403
 
 
+def test_cognito_audiences_defaults_to_web_client():
+    """With no extra audiences, the accepted set is just the web client id —
+    identical to the previous single-audience behavior (backward compatible)."""
+    settings = Settings(  # type: ignore[call-arg]
+        COGNITO_REGION="us-east-1",
+        COGNITO_USER_POOL_ID="us-east-1_test",
+        COGNITO_CLIENT_ID="webclient",
+    )
+    assert settings.cognito_audiences() == ["webclient"]
+
+
+def test_cognito_audiences_includes_extra_clients():
+    """The native mobile client id (and any others) are admitted alongside web."""
+    settings = Settings(  # type: ignore[call-arg]
+        COGNITO_REGION="us-east-1",
+        COGNITO_USER_POOL_ID="us-east-1_test",
+        COGNITO_CLIENT_ID="webclient",
+        COGNITO_EXTRA_AUDIENCES="mobileclient, otherclient",
+    )
+    assert settings.cognito_audiences() == [
+        "webclient",
+        "mobileclient",
+        "otherclient",
+    ]
+
+
 def test_empty_allowlist_rejects_everyone(monkeypatch):
     """Fail-closed: forgetting to set COGNITO_ALLOWED_EMAILS must reject all callers."""
     settings = Settings(  # type: ignore[call-arg]

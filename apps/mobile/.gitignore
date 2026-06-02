@@ -1,0 +1,19 @@
+# Expo / React Native build + tooling output (mobile app is its own npm project)
+node_modules/
+.expo/
+dist/
+web-build/
+ios/
+android/
+
+# Native + Metro
+*.orig.*
+.metro-health-check*
+
+# Env (only .env.example is committed)
+.env
+.env.local
+.env*.local
+
+# macOS
+.DS_Store

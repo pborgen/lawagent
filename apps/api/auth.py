@@ -80,7 +80,7 @@ def _extract_bearer(request: Request) -> str:
 
 def _verify_id_token(token: str, settings: Settings) -> dict:
     """Verify signature, issuer, audience, expiry. Returns claims."""
-    region, pool_id, client_id = settings.require_cognito()
+    region, pool_id, _ = settings.require_cognito()
     jwks_client = _jwks_client_for(region, pool_id)
     try:
         signing_key = jwks_client.get_signing_key_from_jwt(token).key
@@ -88,7 +88,9 @@ def _verify_id_token(token: str, settings: Settings) -> dict:
             token,
             signing_key,
             algorithms=["RS256"],
-            audience=client_id,
+            # A list accepts a token whose `aud` matches any member, so
+            # both the web client and the native mobile client are admitted.
+            audience=settings.cognito_audiences(),
             issuer=f"https://cognito-idp.{region}.amazonaws.com/{pool_id}",
             options={"require": ["exp", "iat", "aud", "iss", "sub"]},
         )
@@ -157,11 +159,12 @@ def log_auth_state(settings: Settings) -> None:
             "All requests bypass JWT verification. Dev use only."
         )
         return
-    region, pool_id, client_id = settings.require_cognito()
+    region, pool_id, _ = settings.require_cognito()
     allowed = ", ".join(sorted(settings.allowed_email_set())) or "<empty>"
+    audiences = ", ".join(settings.cognito_audiences())
     logger.info(
-        "Auth: Cognito JWT required (pool=%s, client=%s, allowed=%s)",
+        "Auth: Cognito JWT required (pool=%s, audiences=%s, allowed=%s)",
         pool_id,
-        client_id,
+        audiences,
         allowed,
     )
