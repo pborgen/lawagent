@@ -33,7 +33,10 @@ from ingest.src.fetch_public import fetch_public_starter
 from ingest.src.official_al import crawl as crawl_al
 from ingest.src.official_az import crawl as crawl_az
 from ingest.src.official_il import crawl as crawl_il
+from ingest.src.official_ia import crawl as crawl_ia
 from ingest.src.official_in import crawl as crawl_in
+from ingest.src.official_ks import crawl as crawl_ks
+from ingest.src.official_ky import crawl as crawl_ky
 from ingest.src.official_la import crawl as crawl_la
 from ingest.src.official_ma import crawl as crawl_ma
 from ingest.src.official_md import crawl as crawl_md
@@ -42,6 +45,7 @@ from ingest.src.official_mn import crawl as crawl_mn
 from ingest.src.official_mo import crawl as crawl_mo
 from ingest.src.official_nc import crawl as crawl_nc
 from ingest.src.official_oh import crawl as crawl_oh
+from ingest.src.official_ok import crawl as crawl_ok
 from ingest.src.official_pa import crawl as crawl_pa
 from ingest.src.official_sc import crawl as crawl_sc
 from ingest.src.official_va import crawl as crawl_va
@@ -80,6 +84,10 @@ _OFFICIAL_CRAWLERS = {
     "sc": crawl_sc,
     "al": crawl_al,
     "la": crawl_la,
+    "ok": crawl_ok,
+    "ks": crawl_ks,
+    "ky": crawl_ky,
+    "ia": crawl_ia,
 }
 
 

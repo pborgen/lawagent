@@ -47,9 +47,33 @@ def public_law_base(subdomain: str, path_prefix: str) -> str:
     return f"https://{subdomain}.public.law{path_prefix}"
 
 
-def fetch_html(url: str) -> str:
-    """Download a page as text, reusing fetch_public's SSL fallbacks."""
-    return _download(url).decode("utf-8", errors="replace")
+def fetch_html(url: str, *, encoding: str = "utf-8") -> str:
+    """Download a page as text, reusing fetch_public's SSL fallbacks.
+
+    `encoding` defaults to utf-8; pass "latin-1" for legacy sites (e.g. OSCN)
+    that serve cp1252/latin-1 and choke a utf-8 decode on 0xa0.
+    """
+    return _download(url).decode(encoding, errors="replace")
+
+
+def fetch_pdf_text(url: str, *, browser_ua: bool = False, timeout: int = 60) -> str:
+    """Download a PDF and return its extracted text (PyMuPDF via pdf2text).
+
+    Several states serve statute sections only as PDFs (KY, IA, ...). Reuses
+    fetch_public's `pdf_bytes_to_markdown` so PDF handling lives in one place.
+    """
+    from ingest.src.fetch_public import pdf_bytes_to_markdown
+
+    ua = _BROWSER_UA if browser_ua else USER_AGENT
+    text = pdf_bytes_to_markdown(_download(url, user_agent=ua, timeout=timeout))
+    # Strip pdf2text's markdown scaffolding — the "# <tmpfile>.pdf" title and
+    # "## Page N" separators — so it doesn't pollute the statute body.
+    lines = [
+        ln for ln in text.splitlines()
+        if not re.match(r"^#\s+\S*\.pdf\s*$", ln)
+        and not re.match(r"^##\s+Page\s+\d+\s*$", ln)
+    ]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
 # A real browser UA + generous timeout, for official sites that gate static
@@ -450,5 +474,6 @@ __all__ = [
     "fetch_and_write_section",
     "write_statute_section",
     "fetch_html_browser",
+    "fetch_pdf_text",
     "USER_AGENT",
 ]
