@@ -46,7 +46,7 @@ class StateRegistryTests(unittest.TestCase):
             {"ny", "tx", "ca", "fl", "or", "co", "nv", "ct",
              "il", "oh", "pa", "nc", "mi", "va", "wa", "az",
              "ma", "in", "mo", "md", "wi", "mn", "sc", "al", "la",
-             "ok", "ks", "ky", "ia"},
+             "ok", "ks", "ky", "ia", "ne", "id", "wv", "hi", "nm"},
         )
 
     def test_every_official_state_has_a_registered_handler(self) -> None:

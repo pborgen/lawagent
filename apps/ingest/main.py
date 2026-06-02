@@ -32,8 +32,10 @@ from store import (
 from ingest.src.fetch_public import fetch_public_starter
 from ingest.src.official_al import crawl as crawl_al
 from ingest.src.official_az import crawl as crawl_az
+from ingest.src.official_hi import crawl as crawl_hi
 from ingest.src.official_il import crawl as crawl_il
 from ingest.src.official_ia import crawl as crawl_ia
+from ingest.src.official_id import crawl as crawl_id
 from ingest.src.official_in import crawl as crawl_in
 from ingest.src.official_ks import crawl as crawl_ks
 from ingest.src.official_ky import crawl as crawl_ky
@@ -44,6 +46,8 @@ from ingest.src.official_mi import crawl as crawl_mi
 from ingest.src.official_mn import crawl as crawl_mn
 from ingest.src.official_mo import crawl as crawl_mo
 from ingest.src.official_nc import crawl as crawl_nc
+from ingest.src.official_ne import crawl as crawl_ne
+from ingest.src.official_nm import crawl as crawl_nm
 from ingest.src.official_oh import crawl as crawl_oh
 from ingest.src.official_ok import crawl as crawl_ok
 from ingest.src.official_pa import crawl as crawl_pa
@@ -51,6 +55,7 @@ from ingest.src.official_sc import crawl as crawl_sc
 from ingest.src.official_va import crawl as crawl_va
 from ingest.src.official_wa import crawl as crawl_wa
 from ingest.src.official_wi import crawl as crawl_wi
+from ingest.src.official_wv import crawl as crawl_wv
 from ingest.src.public_law import crawl_public_law, fetch_specs
 from ingest.src.public_law_flat import crawl_public_law_flat
 from ingest.src.public_law_tx import crawl_public_law_tx
@@ -88,6 +93,11 @@ _OFFICIAL_CRAWLERS = {
     "ks": crawl_ks,
     "ky": crawl_ky,
     "ia": crawl_ia,
+    "ne": crawl_ne,
+    "id": crawl_id,
+    "wv": crawl_wv,
+    "hi": crawl_hi,
+    "nm": crawl_nm,
 }
 
 

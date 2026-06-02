@@ -378,11 +378,56 @@ states:
       - iowa       # Iowa Supreme Court
       - iowactapp  # Iowa Court of Appeals
 
+  ne:
+    name: Nebraska
+    # Neb. Rev. Stat. Chapter 42 (dissolution, 42-347..42-381), nebraskalegislature.gov.
+    fetcher: official
+    official_handler: ne
+    courtlistener_courts:
+      - neb        # Nebraska Supreme Court
+      - nebctapp   # Nebraska Court of Appeals
+
+  id:
+    name: Idaho
+    # Idaho Code Title 32, Ch. 6-7 (Divorce), legislature.idaho.gov.
+    fetcher: official
+    official_handler: id
+    courtlistener_courts:
+      - idaho      # Idaho Supreme Court
+      - idahoctapp # Idaho Court of Appeals
+
+  wv:
+    name: West Virginia
+    # W. Va. Code Chapter 48 (divorce arts. 48-4..48-8), code.wvlegislature.gov.
+    fetcher: official
+    official_handler: wv
+    courtlistener_courts:
+      - wva        # Supreme Court of Appeals of West Virginia
+      - wvactapp   # West Virginia Intermediate Court of Appeals
+
+  hi:
+    name: Hawaii
+    # Haw. Rev. Stat. Chapter 580 (Divorce), data.capitol.hawaii.gov.
+    fetcher: official
+    official_handler: hi
+    courtlistener_courts:
+      - haw        # Supreme Court of Hawaii
+      - hawapp     # Hawaii Intermediate Court of Appeals
+
+  nm:
+    name: New Mexico
+    # NMSA Chapter 40, Art. 4 (Dissolution), nmonesource.com (chapter PDF).
+    fetcher: official
+    official_handler: nm
+    courtlistener_courts:
+      - nm         # New Mexico Supreme Court
+      - nmctapp    # New Mexico Court of Appeals
+
   # Deferred (need a JS-rendering/Playwright crawler or a licensed feed; the
   # only reachable official sources are JS-locked and all free mirrors 403):
   #   NJ — njleg LIS (Folio NXT app)
   #   TN — T.C.A. is LexisNexis-only (advance.lexis.com SPA)
   #   UT — divorce recodified into Title 81 (2024); HTML is JS-gated and PDFs
   #        have version-stamped URLs — needs a headless-browser TOC pass.
-  # Skipped (only free source is stale): GA (ga.elaws.us = 2013 snapshot)
-  # Skipped (no reachable current source; all mirrors 403/stale): AR
+  # Skipped (no reachable current source; LexisNexis official + mirrors 403/stale):
+  #   GA (ga.elaws.us = 2013 snapshot), AR, MS
