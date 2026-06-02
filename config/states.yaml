@@ -423,6 +423,54 @@ states:
       - nm         # New Mexico Supreme Court
       - nmctapp    # New Mexico Court of Appeals
 
+  nh:
+    name: New Hampshire
+    # N.H. Rev. Stat. (RSA) Chapter 458 (Divorce), gc.nh.gov.
+    fetcher: official
+    official_handler: nh
+    courtlistener_courts:
+      - nh         # New Hampshire Supreme Court
+
+  me:
+    name: Maine
+    # Me. Rev. Stat. Title 19-A, Ch. 29 (Divorce), legislature.maine.gov.
+    fetcher: official
+    official_handler: me
+    courtlistener_courts:
+      - me         # Maine Supreme Judicial Court
+
+  mt:
+    name: Montana
+    # Mont. Code Title 40, Ch. 4 (Termination of Marriage), mca.legmt.gov.
+    fetcher: official
+    official_handler: mt
+    courtlistener_courts:
+      - mont       # Montana Supreme Court
+
+  ri:
+    name: Rhode Island
+    # R.I. Gen. Laws Chapter 15-5 (Divorce and Separation), rilegislature.gov.
+    fetcher: official
+    official_handler: ri
+    courtlistener_courts:
+      - ri         # Rhode Island Supreme Court
+
+  de:
+    name: Delaware
+    # Del. Code Title 13, Ch. 15 (Divorce and Annulment), delcode.delaware.gov.
+    fetcher: official
+    official_handler: de
+    courtlistener_courts:
+      - del        # Delaware Supreme Court
+
+  sd:
+    name: South Dakota
+    # S.D. Codified Laws Chapter 25-4 (Divorce), sdlegislature.gov (JSON API).
+    fetcher: official
+    official_handler: sd
+    courtlistener_courts:
+      - sd         # South Dakota Supreme Court
+
   # Deferred (need a JS-rendering/Playwright crawler or a licensed feed; the
   # only reachable official sources are JS-locked and all free mirrors 403):
   #   NJ — njleg LIS (Folio NXT app)
